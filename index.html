@@ -22,6 +22,9 @@ th { background:#fafafa; font-weight:600; }
 footer { padding: 16px; background:#f7f7f7; color:#444; font-size: 13px; text-align:center; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .notice { margin-top:12px; padding:10px 12px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; color:#7c2d12; }
+.small { font-size:12px; color:#666; }
+details.debug { margin-top:12px; background:#f6f8fa; border:1px solid #eaecef; border-radius:8px; padding:8px 12px; }
+details.debug pre { overflow:auto; }
 </style>
 </head>
 <body>
@@ -51,6 +54,15 @@ footer { padding: 16px; background:#f7f7f7; color:#444; font-size: 13px; text-al
     </table>
   </div>
   <div id="msg" class="notice" style="display:none"></div>
+
+  <details id="dbg" class="debug">
+    <summary>Debug (for setup only)</summary>
+    <div class="small">Request URL:</div>
+    <pre id="dbgUrl" class="mono"></pre>
+    <div class="small">Error (if any):</div>
+    <pre id="dbgErr" class="mono"></pre>
+    <div class="small">Tip: open the Request URL in a new tab to see the raw JSON returned by Google Drive API.</div>
+  </details>
 </main>
 <footer>
   <div><strong>Gunster Biotech Co., LTD</strong></div>
@@ -59,37 +71,53 @@ footer { padding: 16px; background:#f7f7f7; color:#444; font-size: 13px; text-al
   <div class="mono">© 2025 Gunster Biotech Co., LTD</div>
 </footer>
 <script>
+// ====== CONFIG ======
+// Folder you shared (works even if it's "Shared with me")
 const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj';
+// Your API key
 const API_KEY   = 'AlzaSyBoDVKJXxcN4EIUV_EPG3SuWw_5n7TgOtzc';
+// Optional: if the folder is inside a Shared Drive, put the shared drive ID here.
+// You can get it from the Shared Drive URL (the "/drives/DRIVE_ID" part). Leave blank if not sure.
+const DRIVE_ID  = '';
+// =====================
 
 const $ = (q)=>document.querySelector(q);
 
 async function doSearch() {
   const kw = $('#keyword').value.trim();
-  const q = [`'${FOLDER_ID}' in parents`, 'trashed = false'];
+  const q = [\n    `'${FOLDER_ID}' in parents`,\n    'trashed = false'\n  ];
   if (kw) q.push(`name contains '${kw.replaceAll("'","\\'")}'`);
 
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', q.join(' and '));
-url.searchParams.set('key', API_KEY);
-url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink)');
-url.searchParams.set('pageSize', '100');
-url.searchParams.set('orderBy', 'modifiedTime desc');
-url.searchParams.set('supportsAllDrives', 'true');
-url.searchParams.set('includeItemsFromAllDrives', 'true');
+  url.searchParams.set('key', API_KEY);
+  url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink)');
+  url.searchParams.set('pageSize', '100');
+  url.searchParams.set('orderBy', 'modifiedTime desc');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  if (DRIVE_ID) {\n    url.searchParams.set('corpora', 'drive');\n    url.searchParams.set('driveId', DRIVE_ID);\n  } else {\n    url.searchParams.set('corpora', 'allDrives');\n  }
 
-$('#btnSearch').disabled = true;
-try {
-  const r = await fetch(url.toString());
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const data = await r.json();
-  renderRows(data.files || []);
-} catch (e) {
-  showMsg('Search failed: ' + e.message + '. Please check API Key referrer settings and folder sharing.');
-  renderRows([]);
-} finally {
-  $('#btnSearch').disabled = false;
-}
+  $('#dbgUrl').textContent = url.toString();
+
+  $('#btnSearch').disabled = true;
+  $('#dbgErr').textContent = '';
+  try {
+    const r = await fetch(url.toString());
+    if (!r.ok) {
+      let t = await r.text();
+      try { const j = JSON.parse(t); t = JSON.stringify(j, null, 2); } catch {}
+      throw new Error('HTTP ' + r.status + '\n' + t);
+    }
+    const data = await r.json();
+    renderRows(data.files || []);
+  } catch (e) {
+    $('#dbgErr').textContent = String(e.message || e);
+    showMsg('Search failed: ' + (e.message || e) + '\nCheck API Key referrer settings, folder sharing, and that the folder ID is correct.');
+    renderRows([]);
+  } finally {
+    $('#btnSearch').disabled = false;
+  }
 }
 
 function renderRows(files){
