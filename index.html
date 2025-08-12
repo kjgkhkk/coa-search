@@ -1,94 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Gunster Biotech — CoA Search & Download (Simple)</title>
-<style>
-  body{font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;padding:16px}
-  h1{font-size:20px;margin:0 0 12px}
-  input,button{font-size:14px}
-  input{padding:8px 10px;min-width:260px}
-  button{padding:8px 12px;margin-left:6px}
-  table{margin-top:12px;border-collapse:collapse;width:100%}
-  td,th{border:1px solid #ddd;padding:8px;text-align:left}
-  th{background:#f7f7f7}
-</style>
-<script>
-// ====== CONFIG ======
-const API_KEY   = 'AIzaSyCHe4kvj5Mgv9MTdS9rL5Dxrg8d2qrTkzI';
-const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj'; // 目前指向最外層資料夾
-const DRIVE_ID  = ''; // 若這個資料夾是在『共享雲端硬碟』，把 Drive ID 貼到這裡；否則留空
-
-function escQ(s){return (s||'').replace(/["'\\]/g, m=>({"'":"\\'","\"":"\\\"","\\":"\\\\"}[m]));}
-
-async function searchFiles(){
-  const kw = document.getElementById('query').value.trim();
-  const tbody = document.getElementById('results');
-  tbody.innerHTML = '<tr><td colspan="3">Searching...</td></tr>';
-
-  const url = new URL('https://www.googleapis.com/drive/v3/files');
-  // 只搜尋這個資料夾底下（不會往子資料夾）：
-  const q = `'${FOLDER_ID}' in parents and trashed=false` + (kw? ` and name contains '${escQ(kw)}'` : '');
-  url.searchParams.set('q', q);
-  url.searchParams.set('key', API_KEY);
-  url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink),nextPageToken');
-  url.searchParams.set('pageSize', '1000');
-  url.searchParams.set('orderBy', 'modifiedTime desc');
-  url.searchParams.set('supportsAllDrives', 'true');
-  url.searchParams.set('includeItemsFromAllDrives', 'true');
-  if (DRIVE_ID){
-    url.searchParams.set('corpora', 'drive');
-    url.searchParams.set('driveId', DRIVE_ID);
-  } else {
-    url.searchParams.set('corpora', 'allDrives');
-  }
-
-  try{
-    const r = await fetch(url);
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    renderRows(data.files||[]);
-  }catch(e){
-    tbody.innerHTML = `<tr><td colspan="3">Search failed: ${e.message}</td></tr>`;
-  }
-}
-
-function renderRows(files){
-  const tbody = document.getElementById('results');
-  tbody.innerHTML = '';
-  if(!files.length){
-    tbody.innerHTML = '<tr><td colspan="3">No files found.</td></tr>';
-    return;
-  }
-  files.forEach((f,i)=>{
-    const view = f.webViewLink ? `<a href="${f.webViewLink}" target="_blank">View</a>` : '';
-    const dl   = f.webContentLink ? ` | <a href="${f.webContentLink}" target="_blank">Download</a>` : '';
-    tbody.insertAdjacentHTML('beforeend', `<tr><td>${i+1}</td><td>${f.name}</td><td>${view}${dl}</td></tr>`);
-  });
-}
-
-function clearSearch(){
-  document.getElementById('query').value='';
-  document.getElementById('results').innerHTML='';
-}
-
-window.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('btnSearch').addEventListener('click', searchFiles);
-  document.getElementById('btnClear').addEventListener('click', clearSearch);
-  document.getElementById('query').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFiles();});
-});
-</script>
+    <title>Gunster Biotech — CoA Search & Download (Simple)</title>
 </head>
 <body>
-  <h1>Gunster Biotech — CoA Search & Download (Simple)</h1>
-  <input id="query" type="text" placeholder="Type a LOT or filename keyword…" />
-  <button id="btnSearch">Search</button>
-  <button id="btnClear">Clear</button>
+    <h1>Gunster Biotech — CoA Search & Download (Simple)</h1>
+    <input type="text" id="searchInput" placeholder="Enter keyword">
+    <button onclick="searchFiles()">Search</button>
+    <button onclick="clearResults()">Clear</button>
+    <table border="1" id="resultsTable">
+        <tr><th>#</th><th>Filename</th><th>Action</th></tr>
+    </table>
+    <script>
+        const API_KEY = 'AIzaSyCHe4kvj5Mgv9MTdS9rL5Dxrg8d2qrTkzI';
+        const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj';
 
-  <table>
-    <thead><tr><th style="width:60px">#</th><th>Filename</th><th style="width:220px">Action</th></tr></thead>
-    <tbody id="results"></tbody>
-  </table>
+        async function searchFiles() {
+            const query = encodeURIComponent(`'${FOLDER_ID}' in parents and trashed=false`);
+            let pageToken = null;
+            let allFiles = [];
+            do {
+                const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,mimeType),nextPageToken&pageSize=1000&pageToken=${pageToken||''}&key=${API_KEY}`);
+                const data = await res.json();
+                if (data.files) {
+                    allFiles.push(...data.files);
+                }
+                pageToken = data.nextPageToken;
+            } while (pageToken);
+
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const matchedFiles = [];
+
+            async function getFilesInFolder(folderId) {
+                let pageToken = null;
+                do {
+                    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType),nextPageToken&pageSize=1000&pageToken=${pageToken||''}&key=${API_KEY}`);
+                    const data = await res.json();
+                    for (const file of data.files) {
+                        if (file.mimeType === 'application/vnd.google-apps.folder') {
+                            await getFilesInFolder(file.id);
+                        } else {
+                            allFiles.push(file);
+                        }
+                    }
+                    pageToken = data.nextPageToken;
+                } while (pageToken);
+            }
+
+            await getFilesInFolder(FOLDER_ID);
+            const resultsTable = document.getElementById('resultsTable');
+            resultsTable.innerHTML = '<tr><th>#</th><th>Filename</th><th>Action</th></tr>';
+            let counter = 1;
+            allFiles.forEach(file => {
+                if (file.name.toLowerCase().includes(keyword)) {
+                    const row = resultsTable.insertRow();
+                    row.insertCell(0).innerText = counter++;
+                    row.insertCell(1).innerText = file.name;
+                    const linkCell = row.insertCell(2);
+                    const link = document.createElement('a');
+                    link.href = `https://drive.google.com/uc?id=${file.id}&export=download`;
+                    link.innerText = 'Download';
+                    linkCell.appendChild(link);
+                }
+            });
+        }
+
+        function clearResults() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('resultsTable').innerHTML = '<tr><th>#</th><th>Filename</th><th>Action</th></tr>';
+        }
+    </script>
 </body>
 </html>
