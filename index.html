@@ -3,185 +3,92 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Gunster Biotech — CoA Search & Download</title>
+<title>Gunster Biotech — CoA Search & Download (Simple)</title>
 <style>
-  :root { --brand:#111; --accent:#0c7; }
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#222;background:#fafafa}
-  .bar{background:var(--brand);color:#fff;padding:14px 18px}
-  .bar h1{margin:0;font-size:20px;letter-spacing:.3px}
-  .sub{opacity:.8;font-size:13px}
-  .wrap{max-width:980px;margin:18px auto;padding:0 16px}
-  .card{background:#fff;border:1px solid #e6e6e6;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-  .pad{padding:14px}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  input[type=text]{flex:1;min-width:260px;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;font-size:14px}
-  button{padding:10px 14px;border:0;border-radius:8px;background:#333;color:#fff;cursor:pointer}
-  button.secondary{background:#888}
-  button:disabled{opacity:.6;cursor:not-allowed}
-  table{width:100%;border-collapse:collapse}
-  th,td{padding:10px 12px;border-top:1px solid #eee;font-size:14px}
-  th{background:#fafafa;text-align:left;color:#555}
-  td a{color:#0a58ca;text-decoration:none}
-  td a:hover{text-decoration:underline}
-  details{margin-top:8px}
-  footer{color:#666;font-size:12px;text-align:center;margin:26px 0}
+  body{font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;padding:16px}
+  h1{font-size:20px;margin:0 0 12px}
+  input,button{font-size:14px}
+  input{padding:8px 10px;min-width:260px}
+  button{padding:8px 12px;margin-left:6px}
+  table{margin-top:12px;border-collapse:collapse;width:100%}
+  td,th{border:1px solid #ddd;padding:8px;text-align:left}
+  th{background:#f7f7f7}
 </style>
-</head>
-<body>
-  <div class="bar">
-    <h1>Gunster Biotech — CoA Search & Download</h1>
-    <div class="sub">Search by LOT / product / date and download directly from our Google Drive folder.</div>
-  </div>
-
-  <div class="wrap">
-    <div class="card">
-      <div class="pad">
-        <div class="row">
-          <input id="query" type="text" placeholder="Type a LOT or filename keyword…" />
-          <button id="btnSearch">Search</button>
-          <button class="secondary" id="btnClear">Clear</button>
-        </div>
-
-        <div style="margin-top:10px;overflow:auto">
-          <table>
-            <thead>
-              <tr><th style="width:60px">#</th><th>Filename</th><th style="width:220px">Action</th></tr>
-            </thead>
-            <tbody id="results">
-              <tr><td colspan="3" style="color:#777">No files found.</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <details>
-          <summary>Debug (for setup only)</summary>
-          <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:nowrap;overflow:auto">
-            <div><strong>Request URL:</strong></div>
-            <div id="dbgUrl" style="color:#555;margin:6px 0 10px"></div>
-            <div><strong>Error (if any):</strong></div>
-            <pre id="dbgErr" style="margin:6px 0;background:#f6f6f6;border:1px solid #eee;border-radius:6px;padding:8px;max-height:220px;overflow:auto"></pre>
-          </div>
-        </details>
-      </div>
-    </div>
-
-    <footer>
-      <div><strong>Gunster Biotech Co., LTD</strong></div>
-      <div>Add: 9F.-1, No. 192, Sec. 3, Datong Rd., Xizhi Dist., New Taipei City 221412, Taiwan</div>
-      <div>Tel: +886-2-2677-2332　Fax: +886-2-2677-2339　Email: gunster@gunster.com.tw</div>
-      <div>© 2025 Gunster Biotech Co., LTD</div>
-    </footer>
-  </div>
-
 <script>
-/* ====== SETTINGS ====== */
+// ====== CONFIG ======
 const API_KEY   = 'AIzaSyCHe4kvj5Mgv9MTdS9rL5Dxrg8d2qrTkzI';
-const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj';
-const DRIVE_ID  = ''; // Shared drive 的最上層才需要填；不是就留空
+const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj'; // 目前指向最外層資料夾
+const DRIVE_ID  = ''; // 若這個資料夾是在『共享雲端硬碟』，把 Drive ID 貼到這裡；否則留空
 
-/* ====== DRIVE HELPERS ====== */
-function buildListURL(parentId, pageToken = '') {
+function escQ(s){return (s||'').replace(/["'\\]/g, m=>({"'":"\\'","\"":"\\\"","\\":"\\\\"}[m]));}
+
+async function searchFiles(){
+  const kw = document.getElementById('query').value.trim();
+  const tbody = document.getElementById('results');
+  tbody.innerHTML = '<tr><td colspan="3">Searching...</td></tr>';
+
   const url = new URL('https://www.googleapis.com/drive/v3/files');
+  // 只搜尋這個資料夾底下（不會往子資料夾）：
+  const q = `'${FOLDER_ID}' in parents and trashed=false` + (kw? ` and name contains '${escQ(kw)}'` : '');
+  url.searchParams.set('q', q);
   url.searchParams.set('key', API_KEY);
-  url.searchParams.set('q', `'${parentId}' in parents and trashed=false`);
-  url.searchParams.set('fields', 'nextPageToken, files(id,name,mimeType,webViewLink,webContentLink)');
+  url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink),nextPageToken');
   url.searchParams.set('pageSize', '1000');
+  url.searchParams.set('orderBy', 'modifiedTime desc');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
-  if (DRIVE_ID) { url.searchParams.set('corpora', 'drive'); url.searchParams.set('driveId', DRIVE_ID); }
-  else { url.searchParams.set('corpora', 'allDrives'); }
-  if (pageToken) url.searchParams.set('pageToken', pageToken);
-  return url;
-}
-
-async function listChildren(parentId) {
-  const items = [];
-  let pageToken = '';
-  do {
-    const url = buildListURL(parentId, pageToken);
-    try {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      items.push(...(data.files || []));
-      pageToken = data.nextPageToken || '';
-      document.getElementById('dbgUrl').textContent = url.toString();
-      document.getElementById('dbgErr').textContent = '';
-    } catch (e) {
-      document.getElementById('dbgUrl').textContent = url.toString();
-      document.getElementById('dbgErr').textContent = e.message;
-      throw e;
-    }
-  } while (pageToken);
-  return items;
-}
-
-async function crawlAll(rootId, kwLower) {
-  const results = [];
-  const queue = [rootId];
-  while (queue.length) {
-    const current = queue.shift();
-    const children = await listChildren(current);
-    for (const it of children) {
-      if (it.mimeType === 'application/vnd.google-apps.folder') {
-        queue.push(it.id);
-      } else {
-        if (!kwLower || it.name.toLowerCase().includes(kwLower)) {
-          results.push(it);
-        }
-      }
-    }
+  if (DRIVE_ID){
+    url.searchParams.set('corpora', 'drive');
+    url.searchParams.set('driveId', DRIVE_ID);
+  } else {
+    url.searchParams.set('corpora', 'allDrives');
   }
-  return results;
-}
 
-/* ====== UI ACTIONS ====== */
-async function doSearch() {
-  const kw = (document.getElementById('query').value || '').trim().toLowerCase();
-  const btn = document.getElementById('btnSearch');
-  const tbody = document.getElementById('results');
-  btn.disabled = true;
-  tbody.innerHTML = '<tr><td colspan="3">Searching...</td></tr>';
-  try {
-    const files = await crawlAll(FOLDER_ID, kw);
-    renderRows(files);
-  } catch (e) {
+  try{
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    renderRows(data.files||[]);
+  }catch(e){
     tbody.innerHTML = `<tr><td colspan="3">Search failed: ${e.message}</td></tr>`;
-  } finally {
-    btn.disabled = false;
   }
 }
 
-function renderRows(files) {
+function renderRows(files){
   const tbody = document.getElementById('results');
   tbody.innerHTML = '';
-  if (!files.length) {
-    tbody.innerHTML = '<tr><td colspan="3" style="color:#777">No files found.</td></tr>';
+  if(!files.length){
+    tbody.innerHTML = '<tr><td colspan="3">No files found.</td></tr>';
     return;
   }
-  files.forEach((f, i) => {
+  files.forEach((f,i)=>{
     const view = f.webViewLink ? `<a href="${f.webViewLink}" target="_blank">View</a>` : '';
     const dl   = f.webContentLink ? ` | <a href="${f.webContentLink}" target="_blank">Download</a>` : '';
-    tbody.insertAdjacentHTML('beforeend',
-      `<tr><td>${i+1}</td><td>${escapeHtml(f.name)}</td><td>${view}${dl}</td></tr>`);
+    tbody.insertAdjacentHTML('beforeend', `<tr><td>${i+1}</td><td>${f.name}</td><td>${view}${dl}</td></tr>`);
   });
 }
 
-function escapeHtml(s){return s.replace(/[&<>\"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))}
-
 function clearSearch(){
   document.getElementById('query').value='';
-  document.getElementById('results').innerHTML='<tr><td colspan="3" style="color:#777">No files found.</td></tr>';
-  document.getElementById('dbgUrl').textContent='';
-  document.getElementById('dbgErr').textContent='';
+  document.getElementById('results').innerHTML='';
 }
 
-/* ====== WIRE UP ====== */
-document.getElementById('btnSearch').addEventListener('click', doSearch);
-document.getElementById('btnClear').addEventListener('click', clearSearch);
-document.getElementById('query').addEventListener('keydown', e=>{
-  if(e.key==='Enter'){ doSearch(); }
+window.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('btnSearch').addEventListener('click', searchFiles);
+  document.getElementById('btnClear').addEventListener('click', clearSearch);
+  document.getElementById('query').addEventListener('keydown', e=>{ if(e.key==='Enter') searchFiles();});
 });
 </script>
+</head>
+<body>
+  <h1>Gunster Biotech — CoA Search & Download (Simple)</h1>
+  <input id="query" type="text" placeholder="Type a LOT or filename keyword…" />
+  <button id="btnSearch">Search</button>
+  <button id="btnClear">Clear</button>
+
+  <table>
+    <thead><tr><th style="width:60px">#</th><th>Filename</th><th style="width:220px">Action</th></tr></thead>
+    <tbody id="results"></tbody>
+  </table>
 </body>
 </html>
