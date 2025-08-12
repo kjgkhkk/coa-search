@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gunster Biotech — CoA Search & Download (Fast)</title>
+    <title>Gunster Biotech — CoA Search & Download (Full Scan + Fast)</title>
 </head>
 <body>
-    <h1>Gunster Biotech — CoA Search & Download (Fast)</h1>
+    <h1>Gunster Biotech — CoA Search & Download (Full Scan + Fast)</h1>
     <input type="text" id="searchInput" placeholder="Enter keyword">
     <button onclick="searchFiles()">Search</button>
     <button onclick="clearResults()">Clear</button>
+    <div id="statusMsg" style="margin:10px 0;color:blue;"></div>
     <table border="1" id="resultsTable">
         <tr>
             <th>#</th>
@@ -19,53 +20,43 @@
     </table>
 
     <script>
-        const API_KEY = 'AIzaSyCHe4kvj5Mgv9MTdS9rL5Dxrg8d2qrTkzI';
-        const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj';
+        const API_KEY = 'YOUR_API_KEY';
+        const FOLDER_ID = 'YOUR_FOLDER_ID';
 
-        // 批次取得多個資料夾名稱
         async function getFolderNames(folderIds) {
             const uniqueIds = [...new Set(folderIds)];
             const folderMap = {};
-
             await Promise.all(uniqueIds.map(async (id) => {
                 const url = `https://www.googleapis.com/drive/v3/files/${id}?key=${API_KEY}&fields=name&supportsAllDrives=true`;
                 const res = await fetch(url);
                 const data = await res.json();
                 folderMap[id] = data.name || '(No Folder)';
             }));
-
             return folderMap;
+        }
+
+        async function getFilesInFolder(folderId, allFiles) {
+            let pageToken = null;
+            do {
+                const res = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,parents,modifiedTime),nextPageToken&pageSize=1000&pageToken=${pageToken||''}&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${API_KEY}`
+                );
+                const data = await res.json();
+                for (const file of data.files) {
+                    if (file.mimeType === 'application/vnd.google-apps.folder') {
+                        await getFilesInFolder(file.id, allFiles);
+                    } else {
+                        allFiles.push(file);
+                    }
+                }
+                pageToken = data.nextPageToken;
+            } while (pageToken);
         }
 
         async function searchFiles() {
             const keyword = document.getElementById('searchInput').value.toLowerCase();
             const resultsTable = document.getElementById('resultsTable');
-
-            // 顯示正在搜尋提示
-            resultsTable.innerHTML = `
-                <tr>
-                    <td colspan="5" style="text-align:center;color:blue;">⏳ 正在搜尋，請稍候...</td>
-                </tr>`;
-
-            let pageToken = null;
-            let counter = 1;
-            let allFiles = [];
-
-            // 抓所有符合關鍵字的檔案
-            do {
-                const res = await fetch(
-                    `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+trashed=false+and+name+contains+'${keyword}'&fields=files(id,name,parents,modifiedTime),nextPageToken&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true&pageToken=${pageToken||''}&key=${API_KEY}`
-                );
-                const data = await res.json();
-                allFiles.push(...data.files);
-                pageToken = data.nextPageToken;
-            } while (pageToken);
-
-            // 批次取得所有資料夾名稱
-            const parentIds = allFiles.flatMap(f => f.parents || []);
-            const folderMap = await getFolderNames(parentIds);
-
-            // 顯示結果
+            const statusMsg = document.getElementById('statusMsg');
             resultsTable.innerHTML = `
                 <tr>
                     <th>#</th>
@@ -74,10 +65,20 @@
                     <th>Last Modified</th>
                     <th>Action</th>
                 </tr>`;
+            statusMsg.innerHTML = '⏳ 正在搜尋所有資料夾，請稍候...';
 
-            allFiles.forEach(file => {
+            let allFiles = [];
+            await getFilesInFolder(FOLDER_ID, allFiles);
+
+            const matchedFiles = allFiles.filter(f => f.name.toLowerCase().includes(keyword));
+            const parentIds = matchedFiles.flatMap(f => f.parents || []);
+            const folderMap = await getFolderNames(parentIds);
+
+            matchedFiles.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
+
+            matchedFiles.forEach((file, index) => {
                 const row = resultsTable.insertRow();
-                row.insertCell(0).innerText = counter++;
+                row.insertCell(0).innerText = index + 1;
                 row.insertCell(1).innerText = file.name;
                 row.insertCell(2).innerText = folderMap[file.parents?.[0]] || '';
                 row.insertCell(3).innerText = new Date(file.modifiedTime).toLocaleString();
@@ -87,6 +88,8 @@
                 link.innerText = 'Download';
                 linkCell.appendChild(link);
             });
+
+            statusMsg.innerHTML = `✅ 找到 ${matchedFiles.length} 筆結果`;
         }
 
         function clearResults() {
@@ -99,6 +102,7 @@
                     <th>Last Modified</th>
                     <th>Action</th>
                 </tr>`;
+            document.getElementById('statusMsg').innerHTML = '';
         }
     </script>
 </body>
