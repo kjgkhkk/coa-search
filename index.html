@@ -75,6 +75,9 @@ async function doSearch() {
   url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink)');
   url.searchParams.set('pageSize', '100');
   url.searchParams.set('orderBy', 'modifiedTime desc');
+  url.searchParams.set('supportsAllDrives', 'true');
+url.searchParams.set('includeItemsFromAllDrives', 'true');
+
 
   $('#btnSearch').disabled = true;
   try {
