@@ -65,7 +65,7 @@
   </div>
 
   <div id="statusMsg"></div>
-  <div class="muted">提示：只填「Lot」會用快速全域搜尋；同時選「品名 + Lot」更快更準。</div>
+  <div class="muted">提示：只填「Lot」會用快速全域搜尋；選「品名」或「品名+Lot」會遞迴掃描所有子資料夾。</div>
 
   <table id="resultsTable">
     <tr>
@@ -83,7 +83,7 @@
     const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj';
     const supports  = '&supportsAllDrives=true&includeItemsFromAllDrives=true';
 
-    // ---- 併發限制，避免一次太多請求 ----
+    // -------- 併發限制，避免同時太多請求 --------
     function createLimiter(maxConcurrent = 8) {
       let running = 0; const q = [];
       const runNext = () => {
@@ -109,32 +109,54 @@
       return map;
     }
 
-    // 在某資料夾內用 name contains 子句篩選（回檔案與子資料夾）
-    async function listInFolder(folderId, textClauses, pageToken = '') {
-      const nameFilter = textClauses.map(t => `name+contains+'${encodeURIComponent(t).replace(/'/g,"%27")}'`).join('+and+');
-      const q = `'${folderId}'+in+parents+and+trashed=false` + (nameFilter ? '+and+' + nameFilter : '');
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,parents,modifiedTime),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
-      const r = await fetch(url); return r.json();
+    // ---- 重點修正：子資料夾「不套名稱篩選」，檔案才篩 ----
+
+    // ① 列出「所有子資料夾」（不套 name 篩選）
+    async function listSubfolders(folderId, pageToken = '') {
+      const q = `'${folderId}'+in+parents+and+trashed=false+and+mimeType='application/vnd.google-apps.folder'`;
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
+      const r = await fetch(url);
+      return r.json();
     }
 
-    // 遞迴搜尋（並行）
+    // ② 列出「檔案」（可套 name 篩選；排除資料夾）
+    async function listFilesInFolderFiltered(folderId, textClauses, pageToken = '') {
+      const nameFilter = textClauses.length
+        ? textClauses.map(t => `name+contains+'${encodeURIComponent(t).replace(/'/g,"%27")}'`).join('+and+')
+        : ''; // 允許空白 → 抓該夾所有檔案
+
+      let q = `'${folderId}'+in+parents+and+trashed=false+and+mimeType!='application/vnd.google-apps.folder'`;
+      if (nameFilter) q += `+and+${nameFilter}`;
+
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,parents,modifiedTime),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
+      const r = await fetch(url);
+      return r.json();
+    }
+
+    // ③ 遞迴搜尋：先抓檔案(有關鍵字篩) → 再抓所有子夾(不篩)往下走
     async function searchRecursively(folderId, textClauses, out) {
+      // 檔案（有關鍵字篩選）
       let token = '';
       do {
-        const data = await limit(() => listInFolder(folderId, textClauses, token));
-        if (data.files?.length) {
-          const subs = [];
-          for (const f of data.files) {
-            if (f.mimeType === 'application/vnd.google-apps.folder') subs.push(f.id);
-            else out.push(f);
-          }
-          await Promise.all(subs.map(id => searchRecursively(id, textClauses, out)));
-        }
+        const data = await limit(() => listFilesInFolderFiltered(folderId, textClauses, token));
+        if (data.files?.length) out.push(...data.files);
         token = data.nextPageToken || '';
       } while (token);
+
+      // 子資料夾（不篩名稱）
+      let ft = '';
+      const subs = [];
+      do {
+        const d = await limit(() => listSubfolders(folderId, ft));
+        if (d.files?.length) subs.push(...d.files.map(f => f.id));
+        ft = d.nextPageToken || '';
+      } while (ft);
+
+      // 並行遞迴
+      await Promise.all(subs.map(id => searchRecursively(id, textClauses, out)));
     }
 
-    // Lot 快速全域搜尋
+    // ④ Lot 快速全域搜尋（僅輸入 6+ 位數字時）
     async function fastLotSearch(lot) {
       let token = ''; const out = [];
       const filter = `name+contains+'${encodeURIComponent(lot).replace(/'/g,"%27")}'`;
@@ -174,21 +196,19 @@
       resetTable();
       status.textContent = '⏳ 正在搜尋，請稍候…';
 
-      const isLot = /^\d{6,}$/.test(lot);
+      const isLotOnly = /^\d{6,}$/.test(lot) && !product;
       let files = [];
 
       try {
-        if (isLot && !product) {
+        if (isLotOnly) {
           // 僅 Lot → 全域快速
           files = await fastLotSearch(lot);
         } else {
-          // 品名 或 品名+Lot（或 Lot 不是純數字），遞迴掃 Root
+          // 有選品名（不論 Lot 是否空白），或 Lot 不是純數字 → 遞迴全層
           const clauses = [];
           if (product) clauses.push(product);
           if (lot)     clauses.push(lot);
-          const tmp = [];
-          await searchRecursively(FOLDER_ID, clauses, tmp);
-          files = tmp;
+          await searchRecursively(FOLDER_ID, clauses, files);
         }
 
         // 批次取資料夾名稱、排序與呈現
