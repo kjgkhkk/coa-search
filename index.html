@@ -71,26 +71,25 @@ async function doSearch() {
 
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', q.join(' and '));
-  url.searchParams.set('key', API_KEY);
-  url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink)');
-  url.searchParams.set('pageSize', '100');
-  url.searchParams.set('orderBy', 'modifiedTime desc');
-  url.searchParams.set('supportsAllDrives', 'true');
+url.searchParams.set('key', API_KEY);
+url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink)');
+url.searchParams.set('pageSize', '100');
+url.searchParams.set('orderBy', 'modifiedTime desc');
+url.searchParams.set('supportsAllDrives', 'true');
 url.searchParams.set('includeItemsFromAllDrives', 'true');
 
-
-  $('#btnSearch').disabled = true;
-  try {
-    const r = await fetch(url.toString());
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    renderRows(data.files || []);
-  } catch (e) {
-    showMsg('Search failed: ' + e.message + '. Please check API Key referrer settings and folder sharing.');
-    renderRows([]);
-  } finally {
-    $('#btnSearch').disabled = false;
-  }
+$('#btnSearch').disabled = true;
+try {
+  const r = await fetch(url.toString());
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  renderRows(data.files || []);
+} catch (e) {
+  showMsg('Search failed: ' + e.message + '. Please check API Key referrer settings and folder sharing.');
+  renderRows([]);
+} finally {
+  $('#btnSearch').disabled = false;
+}
 }
 
 function renderRows(files){
