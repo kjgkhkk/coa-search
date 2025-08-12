@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gunster Biotech — CoA Search & Download</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; color:#111; }
+header { padding: 18px 16px; background: #111; color:#fff; display:flex; align-items:center; gap:14px; }
+header img { height: 48px; width:auto; }
+header .info h1 { font-size: 18px; margin: 0 0 4px; font-weight: 700; }
+header .info p { margin: 0; opacity:.9; }
+main { padding: 18px 16px; max-width: 1100px; margin: 0 auto; }
+.controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom: 10px; }
+input[type=text] { flex: 1 1 260px; padding:10px 12px; border:1px solid #ddd; border-radius:10px; }
+button { padding:10px 14px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+button.primary { background:#111; color:#fff; border-color:#111; }
+.table-wrap { overflow:auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { padding: 10px 8px; border-bottom:1px solid #eee; text-align:left; }
+th { background:#fafafa; font-weight:600; }
+footer { padding: 16px; background:#f7f7f7; color:#444; font-size: 13px; text-align:center; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.notice { margin-top:12px; padding:10px 12px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; color:#7c2d12; }
+</style>
+</head>
+<body>
+<header>
+  <img src="https://www.gunster.com.tw/images/index_01_en.gif" alt="Gunster Biotech logo" onerror="this.src='https://www.gunster.com.tw/images/index_03.gif'">
+  <div class="info">
+    <h1>Gunster Biotech — CoA Search & Download</h1>
+    <p>Search by LOT / product / date and download directly from our Google Drive folder.</p>
+  </div>
+</header>
+<main>
+  <div class="controls">
+    <input id="keyword" type="text" placeholder="Type a LOT or filename keyword…">
+    <button id="btnSearch" class="primary">Search</button>
+    <button id="btnClear">Clear</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:48px">#</th>
+          <th>Filename</th>
+          <th style="width:160px">Action</th>
+        </tr>
+      </thead>
+      <tbody id="results"></tbody>
+    </table>
+  </div>
+  <div id="msg" class="notice" style="display:none"></div>
+</main>
+<footer>
+  <div><strong>Gunster Biotech Co., LTD</strong></div>
+  <div>Add: 9F.-1, No. 192, Sec. 3, Datong Rd., Xizhi Dist., New Taipei City 221412, Taiwan</div>
+  <div>Tel: +886-2-2677-2332 ・ Fax: +886-2-2677-2339 ・ Email: <a href="mailto:gunster@gunster.com.tw">gunster@gunster.com.tw</a></div>
+  <div class="mono">© 2025 Gunster Biotech Co., LTD</div>
+</footer>
+<script>
+const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj';
+const API_KEY   = 'AlzaSyBoDVKJXxcN4EIUV_EPG3SuWw_5n7TgOtzc';
+
+const $ = (q)=>document.querySelector(q);
+
+async function doSearch() {
+  const kw = $('#keyword').value.trim();
+  const q = [`'${FOLDER_ID}' in parents`, 'trashed = false'];
+  if (kw) q.push(`name contains '${kw.replaceAll("'","\\'")}'`);
+
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q.join(' and '));
+  url.searchParams.set('key', API_KEY);
+  url.searchParams.set('fields', 'files(id,name,webViewLink,webContentLink)');
+  url.searchParams.set('pageSize', '100');
+  url.searchParams.set('orderBy', 'modifiedTime desc');
+
+  $('#btnSearch').disabled = true;
+  try {
+    const r = await fetch(url.toString());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    renderRows(data.files || []);
+  } catch (e) {
+    showMsg('Search failed: ' + e.message + '. Please check API Key referrer settings and folder sharing.');
+    renderRows([]);
+  } finally {
+    $('#btnSearch').disabled = false;
+  }
+}
+
+function renderRows(files){
+  const tb = $('#results');
+  tb.innerHTML = '';
+  if (!files.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="3">No files found.</td>';
+    tb.appendChild(tr);
+    return;
+  }
+  files.forEach((f, i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td class="mono">${escapeHtml(f.name)}</td>
+      <td>
+        <a href="${f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`}" target="_blank" rel="noopener">Preview</a>
+        · <a href="${f.webContentLink || `https://drive.google.com/uc?export=download&id=${f.id}` }" target="_blank" rel="noopener">Download</a>
+      </td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+}
+function showMsg(t){ const m=$('#msg'); m.style.display=''; m.textContent=t; }
+
+$('#btnSearch').addEventListener('click', doSearch);
+$('#btnClear').addEventListener('click', ()=>{ $('#keyword').value=''; doSearch(); });
+$('#keyword').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+
+window.addEventListener('DOMContentLoaded', doSearch);
+</script>
+</body>
+</html>
