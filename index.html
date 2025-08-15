@@ -5,77 +5,205 @@
   <title>Gunster Biotech — CoA Search (Product + Lot)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Arial, "Noto Sans TC", sans-serif; }
-    h1 { margin: 16px 0; }
-    .controls { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    select, input, button { padding:6px 8px; font-size:14px; }
-    table { border-collapse: collapse; margin-top: 10px; width: 100%; max-width: 1080px; }
-    th, td { border:1px solid #888; padding:6px 8px; }
-    th { background:#f2f2f2; }
-    #statusMsg { margin:8px 0; color:#0b5bd3; }
-    .muted { color:#666; font-size:12px; }
+    /* =======================
+       GUNSTER THEME (tokens)
+       ======================= */
+    :root{
+      --gunster-blue: #0071BC;     /* 主色：按鈕/強調 */
+      --gunster-blue-d: #005A99;   /* hover/active */
+      --gunster-blue-xd:#004b80;   /* 深色文字/框線強化 */
+      --ink-1:#111; --ink-2:#444; --ink-3:#666;
+      --line:#d4d7dc;              /* 邊框灰 */
+      --bg:#fff; --bg-soft:#f7f9fc; --table-head:#eef3f9;
+      --radius:10px; --radius-sm:6px;
+      --shadow:0 6px 16px rgba(0,0,0,.06);
+    }
+
+    /* =======================
+       Base
+       ======================= */
+    html,body{height:100%}
+    body{
+      font-family:system-ui, -apple-system, "Segoe UI", Arial, "Noto Sans TC", sans-serif;
+      color:var(--ink-1);
+      background:var(--bg-soft);
+      margin:0; padding:24px;
+    }
+    .container{
+      max-width:1080px; margin:0 auto;
+    }
+    .card{
+      background:var(--bg);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:20px;
+    }
+    h1{
+      font-size:22px; margin:0 0 16px;
+      letter-spacing:.2px;
+    }
+
+    /* =======================
+       Controls
+       ======================= */
+    .controls{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      margin:8px 0 4px;
+    }
+    .field{
+      display:inline-flex; align-items:center; gap:6px;
+    }
+    .label{ color:var(--ink-2); font-size:14px; }
+
+    select,input[type="text"]{
+      appearance:none;
+      border:1px solid var(--line);
+      border-radius:var(--radius-sm);
+      padding:8px 10px;
+      font-size:14px; background:#fff;
+      min-height:36px;
+      outline:none;
+      transition:border-color .15s ease, box-shadow .15s ease;
+    }
+    select:focus,input[type="text"]:focus{
+      border-color:var(--gunster-blue);
+      box-shadow:0 0 0 3px rgba(0,113,188,.15);
+    }
+    input::placeholder{ color:#9aa3ad; }
+
+    /* Buttons — Gunster style */
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px;
+      border:1px solid var(--gunster-blue);
+      background:var(--gunster-blue);
+      color:#fff; min-height:36px;
+      padding:8px 14px; font-size:14px; font-weight:600;
+      border-radius:var(--radius-sm); cursor:pointer;
+      transition:background .15s ease, border-color .15s ease, transform .02s ease;
+      text-decoration:none;
+      user-select:none;
+    }
+    .btn:hover{ background:var(--gunster-blue-d); border-color:var(--gunster-blue-d); }
+    .btn:active{ transform:translateY(1px); }
+    .btn.secondary{
+      background:#fff; color:var(--gunster-blue);
+      border-color:var(--gunster-blue);
+    }
+    .btn.secondary:hover{
+      background:#f0f6fb;
+    }
+
+    /* Hint / status */
+    #statusMsg{ margin:10px 0 4px; color:var(--gunster-blue-xd); font-weight:600; }
+    .muted{ color:var(--ink-3); font-size:12px; }
+
+    /* =======================
+       Table
+       ======================= */
+    .table-wrap{
+      overflow:auto; border-radius:var(--radius); border:1px solid var(--line); background:#fff;
+    }
+    table{ width:100%; border-collapse:separate; border-spacing:0; min-width:720px; }
+    thead th{
+      position:sticky; top:0; z-index:1;
+      background:linear-gradient(180deg, #f6f9fd, var(--table-head));
+      color:#2d333a; font-weight:700; letter-spacing:.2px;
+      border-bottom:1px solid var(--line);
+    }
+    th,td{ padding:10px 12px; border-right:1px solid var(--line); }
+    th:last-child, td:last-child{ border-right:none; }
+    tbody tr{ border-top:1px solid var(--line); }
+    tbody tr:hover{ background:#fafcff; }
+    .col-idx{ width:60px; text-align:center; }
+    .col-action a{ color:var(--gunster-blue); text-decoration:none; font-weight:600; }
+    .col-action a:hover{ text-decoration:underline; }
+
+    /* Responsive tweaks */
+    @media (max-width:640px){
+      body{ padding:14px; }
+      .btn{ width:100%; }
+      .controls{ gap:8px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Gunster Biotech — CoA Search (Product + Lot)</h1>
+  <div class="container">
+    <div class="card">
+      <h1>Gunster Biotech — CoA Search (Product + Lot)</h1>
 
-  <div class="controls">
-    <label>品名：</label>
-    <select id="productSelect">
-      <option value="">（不指定）</option>
-      <option>MB-P02-A</option>
-      <option>MB-P02D</option>
-      <option>MB-P08A</option>
-      <option>MB-P08B</option>
-      <option>MB-P08D</option>
-      <option>MB-P08AD</option>
-      <option>MB-Q100</option>
-      <option>MB-Q100A</option>
-      <option>MB-Q100C</option>
-      <option>MB-Q100W</option>
-      <option>MB-Q200</option>
-      <option>MB-Q200A</option>
-      <option>MB-Q200W</option>
-      <option>MB-Optical Cap</option>
-      <option>MB-P08B-Cap</option>
-      <option>MB-P08D-Cap</option>
-      <option>MB-QR4</option>
-      <option>MB-P96</option>
-      <option>MB-P96-T</option>
-      <option>MB-Q96</option>
-      <option>MB-Q96-S</option>
-      <option>MB-Q96-LN</option>
-      <option>MB-Q96-LP</option>
-      <option>MB-Q96-LBR</option>
-      <option>MB-Q96-LBR-W</option>
-      <option>MB-E17</option>
-      <option>MB-384</option>
-      <option>MB-384W</option>
-      <option>MB-PSM</option>
-      <option>MB-QSM</option>
-      <option>MB-BQSM</option>
-      <option>MB-ASM</option>
-      <option>MB-ESM</option>
-    </select>
+      <div class="controls">
+        <div class="field">
+          <span class="label">品名：</span>
+          <select id="productSelect">
+            <option value="">（不指定）</option>
+            <option>MB-P02-A</option>
+            <option>MB-P02D</option>
+            <option>MB-P08A</option>
+            <option>MB-P08B</option>
+            <option>MB-P08D</option>
+            <option>MB-P08AD</option>
+            <option>MB-Q100</option>
+            <option>MB-Q100A</option>
+            <option>MB-Q100C</option>
+            <option>MB-Q100W</option>
+            <option>MB-Q200</option>
+            <option>MB-Q200A</option>
+            <option>MB-Q200W</option>
+            <option>MB-Optical Cap</option>
+            <option>MB-P08B-Cap</option>
+            <option>MB-P08D-Cap</option>
+            <option>MB-QR4</option>
+            <option>MB-P96</option>
+            <option>MB-P96-T</option>
+            <option>MB-Q96</option>
+            <option>MB-Q96-S</option>
+            <option>MB-Q96-LN</option>
+            <option>MB-Q96-LP</option>
+            <option>MB-Q96-LBR</option>
+            <option>MB-Q96-LBR-W</option>
+            <option>MB-E17</option>
+            <option>MB-384</option>
+            <option>MB-384W</option>
+            <option>MB-PSM</option>
+            <option>MB-QSM</option>
+            <option>MB-BQSM</option>
+            <option>MB-ASM</option>
+            <option>MB-ESM</option>
+          </select>
+        </div>
 
-    <label>Lot number：</label>
-    <input id="lotInput" type="text" placeholder="例如 107053（6碼以上數字）" inputmode="numeric" />
-    <button onclick="searchFiles()">Search</button>
-    <button onclick="clearResults()">Clear</button>
+        <div class="field">
+          <span class="label">Lot number：</span>
+          <input id="lotInput" type="text" placeholder="例如 107053（6碼以上數字）" inputmode="numeric" />
+        </div>
+
+        <button class="btn" onclick="searchFiles()">Search</button>
+        <button class="btn secondary" onclick="clearResults()">Clear</button>
+      </div>
+
+      <div id="statusMsg"></div>
+      <div class="muted">提示：只填「Lot」，會用快速全域搜尋；選「品名」或「品名+Lot」，會遞迴掃描所有子資料夾。</div>
+
+      <div class="table-wrap" style="margin-top:12px;">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th class="col-idx">#</th>
+              <th>Filename</th>
+              <th>Folder</th>
+              <th>Last Modified</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- results here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
-
-  <div id="statusMsg"></div>
-  <div class="muted">提示：只填「Lot」會用快速全域搜尋；選「品名」或「品名+Lot」會遞迴掃描所有子資料夾。</div>
-
-  <table id="resultsTable">
-    <tr>
-      <th>#</th>
-      <th>Filename</th>
-      <th>Folder</th>
-      <th>Last Modified</th>
-      <th>Action</th>
-    </tr>
-  </table>
 
   <script>
     // 你的金鑰與根資料夾
@@ -109,9 +237,7 @@
       return map;
     }
 
-    // ---- 重點修正：子資料夾「不套名稱篩選」，檔案才篩 ----
-
-    // ① 列出「所有子資料夾」（不套 name 篩選）
+    // 列出「所有子資料夾」（不套 name 篩選）
     async function listSubfolders(folderId, pageToken = '') {
       const q = `'${folderId}'+in+parents+and+trashed=false+and+mimeType='application/vnd.google-apps.folder'`;
       const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
@@ -119,11 +245,11 @@
       return r.json();
     }
 
-    // ② 列出「檔案」（可套 name 篩選；排除資料夾）
+    // 列出「檔案」（可套 name 篩選；排除資料夾）
     async function listFilesInFolderFiltered(folderId, textClauses, pageToken = '') {
       const nameFilter = textClauses.length
         ? textClauses.map(t => `name+contains+'${encodeURIComponent(t).replace(/'/g,"%27")}'`).join('+and+')
-        : ''; // 允許空白 → 抓該夾所有檔案
+        : '';
 
       let q = `'${folderId}'+in+parents+and+trashed=false+and+mimeType!='application/vnd.google-apps.folder'`;
       if (nameFilter) q += `+and+${nameFilter}`;
@@ -133,9 +259,8 @@
       return r.json();
     }
 
-    // ③ 遞迴搜尋：先抓檔案(有關鍵字篩) → 再抓所有子夾(不篩)往下走
+    // 遞迴搜尋：先抓檔案(有關鍵字篩) → 再抓所有子夾(不篩)往下走
     async function searchRecursively(folderId, textClauses, out) {
-      // 檔案（有關鍵字篩選）
       let token = '';
       do {
         const data = await limit(() => listFilesInFolderFiltered(folderId, textClauses, token));
@@ -143,7 +268,6 @@
         token = data.nextPageToken || '';
       } while (token);
 
-      // 子資料夾（不篩名稱）
       let ft = '';
       const subs = [];
       do {
@@ -152,16 +276,18 @@
         ft = d.nextPageToken || '';
       } while (ft);
 
-      // 並行遞迴
       await Promise.all(subs.map(id => searchRecursively(id, textClauses, out)));
     }
 
-    // ④ Lot 快速全域搜尋（僅輸入 6+ 位數字時）
+    // Lot 快速全域搜尋（僅輸入 6+ 位數字時）→ 排除資料夾
     async function fastLotSearch(lot) {
       let token = ''; const out = [];
-      const filter = `name+contains+'${encodeURIComponent(lot).replace(/'/g,"%27")}'`;
+      const filter = `name+contains+'${encodeURIComponent(lot).replace(/'/g,"%27")}'`
+                   + `+and+mimeType!='application/vnd.google-apps.folder'`;
       do {
-        const url = `https://www.googleapis.com/drive/v3/files?q=${filter}+and+trashed=false&fields=files(id,name,parents,modifiedTime),nextPageToken&pageSize=200${supports}&pageToken=${token}&key=${API_KEY}`;
+        const url = `https://www.googleapis.com/drive/v3/files?q=${filter}+and+trashed=false`
+                  + `&fields=files(id,name,parents,modifiedTime),nextPageToken&pageSize=200${supports}`
+                  + `&pageToken=${token}&key=${API_KEY}`;
         const j = await fetch(url).then(r => r.json());
         if (j.files) out.push(...j.files);
         token = j.nextPageToken || '';
@@ -170,14 +296,8 @@
     }
 
     function resetTable() {
-      document.getElementById('resultsTable').innerHTML = `
-        <tr>
-          <th>#</th>
-          <th>Filename</th>
-          <th>Folder</th>
-          <th>Last Modified</th>
-          <th>Action</th>
-        </tr>`;
+      const tbody = document.querySelector('#resultsTable tbody');
+      tbody.innerHTML = '';
     }
 
     function clearResults() {
@@ -191,7 +311,7 @@
       const product = document.getElementById('productSelect').value.trim();
       const lot     = document.getElementById('lotInput').value.trim();
       const status  = document.getElementById('statusMsg');
-      const table   = document.getElementById('resultsTable');
+      const tbody   = document.querySelector('#resultsTable tbody');
 
       resetTable();
       status.textContent = '⏳ 正在搜尋，請稍候…';
@@ -201,31 +321,29 @@
 
       try {
         if (isLotOnly) {
-          // 僅 Lot → 全域快速
           files = await fastLotSearch(lot);
         } else {
-          // 有選品名（不論 Lot 是否空白），或 Lot 不是純數字 → 遞迴全層
           const clauses = [];
           if (product) clauses.push(product);
           if (lot)     clauses.push(lot);
           await searchRecursively(FOLDER_ID, clauses, files);
         }
 
-        // 批次取資料夾名稱、排序與呈現
         const parentIds = files.flatMap(f => f.parents || []);
         const folderMap = await getFolderNames(parentIds);
         files.sort((a,b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
 
         files.forEach((f, i) => {
-          const row = table.insertRow();
-          row.insertCell(0).innerText = i + 1;
-          row.insertCell(1).innerText = f.name;
-          row.insertCell(2).innerText = folderMap[f.parents?.[0]] || '';
-          row.insertCell(3).innerText = new Date(f.modifiedTime).toLocaleString();
-          const a = document.createElement('a');
-          a.href = `https://drive.google.com/uc?id=${f.id}&export=download`;
-          a.innerText = 'Download';
-          row.insertCell(4).appendChild(a);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="col-idx">${i+1}</td>
+            <td>${f.name}</td>
+            <td>${folderMap[f.parents?.[0]] || ''}</td>
+            <td>${new Date(f.modifiedTime).toLocaleString()}</td>
+            <td class="col-action">
+              <a href="https://drive.google.com/uc?id=${f.id}&export=download" target="_blank" rel="noopener">Download</a>
+            </td>`;
+          tbody.appendChild(tr);
         });
 
         const secs = ((Date.now() - start) / 1000).toFixed(2);
