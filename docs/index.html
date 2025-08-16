@@ -5,121 +5,274 @@
   <title>CoA Download</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{--blue:#0071BC;--line:#d6e1ef;--soft:#f5f7fa}
-    body{margin:0;background:var(--soft);font-family:Arial,system-ui,sans-serif;color:#2d333a}
+    :root{
+      --blue:#0071BC; --blue-d:#005A99;
+      --ink:#2d333a; --muted:#6b7785; --line:#d6e1ef;
+      --bg:#fff; --bg-soft:#f5f7fa; --radius:6px;
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg-soft);color:var(--ink);
+         font-family:Arial,"Noto Sans",system-ui,sans-serif}
     .wrap{max-width:1080px;margin:0 auto;padding:16px}
+    h2{margin:0 0 12px;font-size:22px}
     .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px}
-    h2{margin:0 0 12px}
-    .table{border:1px solid var(--line);border-radius:8px;overflow:auto;background:#fff}
+
+    /* Controls */
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    label{font-size:14px;color:#3b4652;margin-right:4px}
+    select,input{min-height:34px;border:1px solid var(--line);border-radius:var(--radius);
+                 padding:6px 10px;background:#fff}
+    input::placeholder{color:#9aa3ad}
+    .btn{min-height:34px;border:1px solid #b9c8dc;border-radius:var(--radius);
+         background:#efefef;cursor:pointer;padding:6px 14px;font-weight:700}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    .status{margin:8px 0 6px;color:var(--muted);font-size:13px}
+
+    /* Table */
+    .tablewrap{border:1px solid var(--line);border-radius:8px;overflow:auto;background:#fff}
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{background:#1195e3;color:#fff;position:sticky;top:0}
+    thead th{
+      background:#1195e3;color:#fff;font-weight:700;
+      border-bottom:1px solid #0b72b4; position:sticky; top:0;
+    }
     th,td{padding:10px 12px;border-right:1px solid #e6eef7}
     th:last-child,td:last-child{border-right:none}
     tbody tr{border-top:1px solid #eef4fb}
     tbody tr:hover{background:#f8fbff}
-    a{color:#167ac6;text-decoration:none}
-    a:hover{text-decoration:underline}
-    .note{margin:8px 0;color:#6b7785;font-size:13px}
-    .muted{color:#8a95a3}
+    .title a{color:#167ac6;text-decoration:none}
+    .title a:hover{text-decoration:underline}
+
+    .pair{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .pair > span{font-size:14px;color:#3b4652}
+    @media (max-width:720px){ .controls{gap:6px} .pair{gap:6px} }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h2>CoA Download</h2>
-      <div class="note">Source: <code id="srcPath">/docs/manifest/manifest.json</code> <span class="muted">(auto-updated daily)</span></div>
-      <div class="table">
+
+      <!-- Controls -->
+      <div class="controls">
+        <label>Product:</label>
+        <select id="productSelect"></select>
+
+        <div id="lotSingle" style="display:none;">
+          <label style="margin-left:8px;">Lot:</label>
+          <input id="lotInput" type="text" inputmode="numeric" placeholder="e.g. 107043" />
+        </div>
+
+        <div id="lotPair" class="pair" style="display:none;">
+          <span>Tube Lot:</span>
+          <input id="lotTube" type="text" inputmode="numeric" placeholder="e.g. 107043" />
+          <span>Cap Lot:</span>
+          <input id="lotCap" type="text" inputmode="numeric" placeholder="e.g. 250607" />
+        </div>
+
+        <button id="searchBtn" class="btn" disabled>Search</button>
+        <button id="clearBtn" class="btn">Clear</button>
+      </div>
+
+      <div id="status" class="status">Source: (detecting…)</div>
+
+      <!-- Result table -->
+      <div class="tablewrap">
         <table>
           <thead>
             <tr>
-              <th>Title</th>
+              <th class="title">Title</th>
               <th style="width:160px;">Published</th>
             </tr>
           </thead>
-          <tbody id="tbody">
-            <tr><td colspan="2">Loading…</td></tr>
-          </tbody>
+          <tbody id="tbody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
   <script>
-    // 兩個候選路徑：先試舊版資料夾 /manifest/manifest.json，再回退到新版 /manifest.json
-    const CANDIDATES = [
-      './manifest/manifest.json',
-      './manifest.json'
+    // ===== Product groups (for dropdown) =====
+    const GROUPS = [
+      ["Separate 8-strip", [
+        "MB-P08B","MB-P08D","MB-Q100","MB-Q100C","MB-Q100W","MB-Q200","MB-Q200W","MB-QR4"
+      ]],
+      ["Tube+Attached 8-strip", [
+        "MB-P02-A","MB-P02D","MB-P08A","MB-P08AD",
+        "MB-P08A(B)","MB-P08A(G)","MB-P08A(R)","MB-P08A(P)","MB-P08A(Y)","MB-P08A(O)",
+        "MB-P08AD (B)","MB-P08AD (G)","MB-P08AD (R)","MB-P08AD (P)","MB-P08AD (Y)","MB-P08AD (O)",
+        "MB-E17"
+      ]],
+      ["96 & 384 Plates", [
+        "MB-P96","MB-P96-T","MB-Q96","MB-Q96-S","MB-Q96-LN","MB-Q96-LP","MB-Q96-LBR","MB-Q96-LBR-W","MB-384","MB-384W"
+      ]],
+      ["Film", ["MB-PSM","MB-QSM","MB-BQSM","MB-ASM","MB-ESM"]]
     ];
+    const separateProducts = new Set(GROUPS[0][1]);
 
-    // 將 ISO 時間 -> YYYY-MM-DD
-    function toYMD(iso){
-      try {
-        if (!iso) return '';
-        return new Date(iso).toISOString().slice(0,10);
-      } catch { return ''; }
+    // ===== Elements =====
+    const sel = document.getElementById('productSelect');
+    const lotSingle = document.getElementById('lotSingle');
+    const lotPair   = document.getElementById('lotPair');
+    const lotInput  = document.getElementById('lotInput');
+    const lotTube   = document.getElementById('lotTube');
+    const lotCap    = document.getElementById('lotCap');
+    const searchBtn = document.getElementById('searchBtn');
+    const clearBtn  = document.getElementById('clearBtn');
+    const statusEl  = document.getElementById('status');
+    const tbody     = document.getElementById('tbody');
+
+    // ===== Build dropdown =====
+    function buildDropdown(){
+      sel.innerHTML = '<option value="">Please Select…</option>';
+      GROUPS.forEach(([label, items])=>{
+        const og = document.createElement('optgroup');
+        og.label = label;
+        items.forEach(p=>{
+          const opt = document.createElement('option');
+          opt.value = p; opt.textContent = p;
+          og.appendChild(opt);
+        });
+        sel.appendChild(og);
+      });
     }
+    buildDropdown();
 
-    async function fetchJSON(url){
-      const res = await fetch(url + `?t=${Date.now()}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+    // ===== UI state =====
+    function isDigits(s){ return /^\d+$/.test(s.trim()); }
+
+    function refreshLotUI(){
+      const p = sel.value;
+      const showPair = separateProducts.has(p);
+      lotSingle.style.display = p && !showPair ? 'inline-flex' : 'none';
+      lotPair.style.display   = p && showPair  ? 'inline-flex' : 'none';
+      validate();
     }
-
-    function normalizeList(json){
-      // 支援兩種格式：{ files: [...] } 或 [...] 直接是陣列
-      if (Array.isArray(json)) return json;
-      if (json && Array.isArray(json.files)) return json.files;
-      return [];
-    }
-
-    async function load(){
-      const tb = document.getElementById('tbody');
-      const srcPath = document.getElementById('srcPath');
-
-      // 逐一嘗試候選來源
-      let loaded = null, usedUrl = '';
-      for (const u of CANDIDATES){
-        try {
-          const j = await fetchJSON(u);
-          const list = normalizeList(j);
-          if (list.length){
-            loaded = list;
-            usedUrl = u;
-            break;
-          } else {
-            // 允許空清單，但仍記錄來源
-            loaded = list;
-            usedUrl = u;
-            break;
-          }
-        } catch(e){
-          // 繼續試下一個
-        }
+    function validate(){
+      const p = sel.value;
+      let ok = false;
+      if (!p){ ok = false; }
+      else if (separateProducts.has(p)){
+        const t = lotTube.value.trim(), c = lotCap.value.trim();
+        ok = (isDigits(t) || isDigits(c)); // 至少一個
+      }else{
+        ok = isDigits(lotInput.value.trim());
       }
+      searchBtn.disabled = !ok;
+      statusEl.textContent = (manifestPick
+        ? `Source: ${manifestPick} ${ok ? '— Ready.' : ''}`
+        : (ok ? 'Ready.' : 'Please select product and enter Lot.'));
+    }
+    sel.addEventListener('change', refreshLotUI);
+    [lotInput, lotTube, lotCap].forEach(el=>{
+      el.addEventListener('input', validate);
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter' && !searchBtn.disabled){ applyFilter(); } });
+    });
+    searchBtn.addEventListener('click', applyFilter);
+    clearBtn.addEventListener('click', ()=>{
+      sel.value=''; lotInput.value=''; lotTube.value=''; lotCap.value='';
+      refreshLotUI(); applyFilter(true);
+    });
 
-      if (usedUrl) srcPath.textContent = usedUrl.replace('./','/docs/');
+    // ===== Manifest fetch & render =====
+    let manifestPick = '';
+    async function pickManifest(){
+      const A = './manifest/manifest.json';
+      const B = './manifest.json';
+      const tryFetch = async (u)=>{
+        try{
+          const r = await fetch(u, {cache:'no-store'});
+          if (r.ok) return await r.json();
+        }catch(_){}
+        return null;
+      };
+      let data = await tryFetch(A);
+      if (data){ manifestPick = '/docs/manifest/manifest.json'; return data; }
+      data = await tryFetch(B);
+      if (data){ manifestPick = '/docs/manifest.json'; return data; }
+      throw new Error('No manifest found');
+    }
 
-      if (!loaded){
-        tb.innerHTML = `<tr><td colspan="2">Failed to load manifest</td></tr>`;
-        return;
-      }
+    function normItem(it){
+      // 盡量容錯：支援 {name,url,modifiedTime|mtime|published,id}
+      const name = it.name || it.title || '';
+      const url  = it.url || (it.id ? `https://drive.google.com/uc?id=${it.id}&export=download` : '#');
+      const d = it.modifiedTime || it.mtime || it.published || it.date || '';
+      const iso = d ? new Date(d).toISOString().slice(0,10) : '';
+      return {name, url, date: iso};
+    }
 
-      // 依 modifiedTime 由新到舊
-      loaded.sort((a,b)=> (b.modifiedTime||'').localeCompare(a.modifiedTime||''));
-
-      // 繪製
-      tb.innerHTML = loaded.map(f=>{
-        const d = toYMD(f.modifiedTime);
-        const href = f.url || (f.id ? `https://drive.google.com/uc?id=${f.id}&export=download` : '#');
-        const name = f.name || f.title || 'Untitled';
-        return `<tr>
-          <td><a href="${href}" target="_blank" rel="noopener">${name}</a></td>
-          <td>${d}</td>
+    function render(items){
+      const html = items.map(it=>{
+        const {name,url,date} = normItem(it);
+        return `<tr data-name="${encodeURIComponent(name)}">
+          <td class="title"><a href="${url}" target="_blank" rel="noopener">${name}</a></td>
+          <td>${date}</td>
         </tr>`;
-      }).join('') || `<tr><td colspan="2">No files</td></tr>`;
+      }).join('');
+      tbody.innerHTML = html || `<tr><td colspan="2">❌ No files</td></tr>`;
+      applyFilter(true); // 初次渲染後依目前條件更新顯示與計數
     }
 
-    load();
+    // ===== Filtering (client-side on rendered rows) =====
+    function rowMatches(nameText, product, lotSingleVal, tubeVal, capVal){
+      const txt = nameText.toLowerCase();
+      if (!product) return true; // 清除時顯示全部
+      const p = product.toLowerCase();
+
+      if (separateProducts.has(product)){
+        let ok = false;
+        if (isDigits(tubeVal)){
+          const key = `${product}-Lot-${tubeVal}`.toLowerCase();
+          ok = ok || txt.includes(key);
+        }
+        if (isDigits(capVal)){
+          // 支援「MB-XXXXCAP-Lot-」或「MB-XXXX-CAP-Lot-」兩種
+          const k1 = `${product}CAP-Lot-${capVal}`.toLowerCase();
+          const k2 = `${product}-CAP-Lot-${capVal}`.toLowerCase();
+          ok = ok || txt.includes(k1) || txt.includes(k2);
+        }
+        return ok;
+      } else {
+        const key = `${product}-Lot-${lotSingleVal}`.toLowerCase();
+        return isDigits(lotSingleVal) && txt.includes(key);
+      }
+    }
+
+    function applyFilter(isInit=false){
+      const product = sel.value;
+      const lotS = lotInput.value.trim();
+      const lotT = lotTube.value.trim();
+      const lotC = lotCap.value.trim();
+
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      let shown = 0;
+      rows.forEach(tr=>{
+        const name = decodeURIComponent(tr.getAttribute('data-name')||'');
+        const ok = rowMatches(name, product, lotS, lotT, lotC);
+        tr.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      if (!isInit){
+        statusEl.textContent = `${manifestPick ? 'Source: '+manifestPick+' — ' : ''}顯示 ${shown} 筆`;
+      }else{
+        statusEl.textContent = `${manifestPick ? 'Source: '+manifestPick : ''}`;
+      }
+    }
+
+    // ===== Boot =====
+    (async ()=>{
+      try{
+        const data = await pickManifest();
+        // 支援清單是陣列或包在 {files: []}
+        const items = Array.isArray(data) ? data : (data.files || data.items || []);
+        render(items);
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = '⚠ Cannot load manifest';
+      }finally{
+        refreshLotUI();
+      }
+    })();
   </script>
 </body>
 </html>
