@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CoA Download</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{--blue:#0071BC;--line:#d6e1ef;--soft:#f5f7fa}
+    body{margin:0;background:var(--soft);font-family:Arial,system-ui,sans-serif;color:#2d333a}
+    .wrap{max-width:1080px;margin:0 auto;padding:16px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px}
+    h2{margin:0 0 12px}
+    .table{border:1px solid var(--line);border-radius:8px;overflow:auto;background:#fff}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{background:#1195e3;color:#fff;position:sticky;top:0}
+    th,td{padding:10px 12px;border-right:1px solid #e6eef7}
+    th:last-child,td:last-child{border-right:none}
+    tbody tr{border-top:1px solid #eef4fb}
+    tbody tr:hover{background:#f8fbff}
+    a{color:#167ac6;text-decoration:none} a:hover{text-decoration:underline}
+    .note{margin:8px 0;color:#6b7785;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>CoA Download</h2>
+      <div class="note">Source: <code>/docs/manifest/manifest.json</code> (auto-updated daily)</div>
+      <div class="table">
+        <table>
+          <thead><tr><th>Title</th><th style="width:160px;">Published</th></tr></thead>
+          <tbody id="tbody"><tr><td colspan="2">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>
+    async function load(){
+      const tb = document.getElementById('tbody');
+      try{
+        const j = await fetch('./manifest/manifest.json', {cache:'no-store'}).then(r=>r.json());
+        const list = (j.files||[]).sort((a,b)=>(b.modifiedTime||'').localeCompare(a.modifiedTime||''));
+        tb.innerHTML = list.map(f=>{
+          const d = f.modifiedTime ? new Date(f.modifiedTime).toISOString().slice(0,10) : '';
+          const href = f.url || `https://drive.google.com/uc?id=${f.id}&export=download`;
+          return `<tr><td><a href="${href}" target="_blank" rel="noopener">${f.name}</a></td><td>${d}</td></tr>`;
+        }).join('') || `<tr><td colspan="2">No files</td></tr>`;
+      }catch(e){ tb.innerHTML = `<tr><td colspan="2">Failed to load manifest</td></tr>`; }
+    }
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "coa-search",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "googleapis": "^126.0.1"
+  }
+}
