@@ -13,14 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with:
+          node-version: 20
+
       - run: npm install
-      - name: Build manifest
+
+      - name: Build manifest from Google Drive
         env:
-          GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+          GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           FOLDER_ID: 1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj
         run: node scripts/build-manifest.mjs
+
       - name: Commit & push if changed
         run: |
           if [[ -n "$(git status --porcelain docs/manifest)" ]]; then
