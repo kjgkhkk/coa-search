@@ -1,5 +1,12 @@
 {
-  "version": "0",
-  "total": 0,
-  "shards": []
+  "version": "2025-08-16T18:02:38.744Z",
+  "total": 2,
+  "shards": [
+    {
+      "year": 2025,
+      "path": "manifest-2025.json",
+      "items": 2,
+      "etag": "83721f6f0d80bc085aa14b4658250e731800c489b6bcf88e2ff20c7029f5f993"
+    }
+  ]
 }

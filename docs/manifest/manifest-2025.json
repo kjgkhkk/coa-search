@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "file_name": "MB-Q200-Lot-107043.pdf",
+      "url": "files/MB-Q200-Lot-107043.pdf",
+      "product": "MB-Q200",
+      "is_cap": false,
+      "lot": "107043",
+      "legacy_key": "",
+      "mtime": "2025-08-16T18:02:38.074Z",
+      "size": 134302,
+      "sha256": "9909eae55a5c8b4ebfdffa378d1d82b1dd21bd935e7f1882db1d9ac09a9b1d30"
+    },
+    {
+      "file_name": "MB-Q200CAP-Lot-250702.pdf",
+      "url": "files/MB-Q200CAP-Lot-250702.pdf",
+      "product": "MB-Q200",
+      "is_cap": true,
+      "lot": "250702",
+      "legacy_key": "",
+      "mtime": "2025-08-16T18:02:38.074Z",
+      "size": 134302,
+      "sha256": "9909eae55a5c8b4ebfdffa378d1d82b1dd21bd935e7f1882db1d9ac09a9b1d30"
+    }
+  ]
+}
