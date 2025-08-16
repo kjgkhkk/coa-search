@@ -140,7 +140,8 @@
     buildDropdown();
 
     // ===== UI state =====
-    function isDigits(s){ return /^\d+$/.test(s.trim()); }
+    function isDigits(s){ return /^\d{6}$/.test(s.trim()); }
+
 
     function refreshLotUI(){
       const p = sel.value;
