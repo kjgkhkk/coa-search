@@ -1,0 +1,34 @@
+name: Build CoA manifest
+
+on:
+  schedule:
+    - cron: "15 17 * * *"   # 每日台灣時間 01:15 (UTC+8)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - name: Build manifest
+        env:
+          GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+          FOLDER_ID: 1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj
+        run: node scripts/build-manifest.mjs
+      - name: Commit & push if changed
+        run: |
+          if [[ -n "$(git status --porcelain docs/manifest)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/manifest/*.json
+            git commit -m "chore: update CoA manifest [skip ci]"
+            git push
+          else
+            echo "No changes."
+          fi
