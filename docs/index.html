@@ -17,36 +17,108 @@
     th:last-child,td:last-child{border-right:none}
     tbody tr{border-top:1px solid #eef4fb}
     tbody tr:hover{background:#f8fbff}
-    a{color:#167ac6;text-decoration:none} a:hover{text-decoration:underline}
+    a{color:#167ac6;text-decoration:none}
+    a:hover{text-decoration:underline}
     .note{margin:8px 0;color:#6b7785;font-size:13px}
+    .muted{color:#8a95a3}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h2>CoA Download</h2>
-      <div class="note">Source: <code>/docs/manifest/manifest.json</code> (auto-updated daily)</div>
+      <div class="note">Source: <code id="srcPath">/docs/manifest/manifest.json</code> <span class="muted">(auto-updated daily)</span></div>
       <div class="table">
         <table>
-          <thead><tr><th>Title</th><th style="width:160px;">Published</th></tr></thead>
-          <tbody id="tbody"><tr><td colspan="2">Loading…</td></tr></tbody>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th style="width:160px;">Published</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="2">Loading…</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
   </div>
+
   <script>
+    // 兩個候選路徑：先試舊版資料夾 /manifest/manifest.json，再回退到新版 /manifest.json
+    const CANDIDATES = [
+      './manifest/manifest.json',
+      './manifest.json'
+    ];
+
+    // 將 ISO 時間 -> YYYY-MM-DD
+    function toYMD(iso){
+      try {
+        if (!iso) return '';
+        return new Date(iso).toISOString().slice(0,10);
+      } catch { return ''; }
+    }
+
+    async function fetchJSON(url){
+      const res = await fetch(url + `?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function normalizeList(json){
+      // 支援兩種格式：{ files: [...] } 或 [...] 直接是陣列
+      if (Array.isArray(json)) return json;
+      if (json && Array.isArray(json.files)) return json.files;
+      return [];
+    }
+
     async function load(){
       const tb = document.getElementById('tbody');
-      try{
-        const j = await fetch('./manifest/manifest.json', {cache:'no-store'}).then(r=>r.json());
-        const list = (j.files||[]).sort((a,b)=>(b.modifiedTime||'').localeCompare(a.modifiedTime||''));
-        tb.innerHTML = list.map(f=>{
-          const d = f.modifiedTime ? new Date(f.modifiedTime).toISOString().slice(0,10) : '';
-          const href = f.url || `https://drive.google.com/uc?id=${f.id}&export=download`;
-          return `<tr><td><a href="${href}" target="_blank" rel="noopener">${f.name}</a></td><td>${d}</td></tr>`;
-        }).join('') || `<tr><td colspan="2">No files</td></tr>`;
-      }catch(e){ tb.innerHTML = `<tr><td colspan="2">Failed to load manifest</td></tr>`; }
+      const srcPath = document.getElementById('srcPath');
+
+      // 逐一嘗試候選來源
+      let loaded = null, usedUrl = '';
+      for (const u of CANDIDATES){
+        try {
+          const j = await fetchJSON(u);
+          const list = normalizeList(j);
+          if (list.length){
+            loaded = list;
+            usedUrl = u;
+            break;
+          } else {
+            // 允許空清單，但仍記錄來源
+            loaded = list;
+            usedUrl = u;
+            break;
+          }
+        } catch(e){
+          // 繼續試下一個
+        }
+      }
+
+      if (usedUrl) srcPath.textContent = usedUrl.replace('./','/docs/');
+
+      if (!loaded){
+        tb.innerHTML = `<tr><td colspan="2">Failed to load manifest</td></tr>`;
+        return;
+      }
+
+      // 依 modifiedTime 由新到舊
+      loaded.sort((a,b)=> (b.modifiedTime||'').localeCompare(a.modifiedTime||''));
+
+      // 繪製
+      tb.innerHTML = loaded.map(f=>{
+        const d = toYMD(f.modifiedTime);
+        const href = f.url || (f.id ? `https://drive.google.com/uc?id=${f.id}&export=download` : '#');
+        const name = f.name || f.title || 'Untitled';
+        return `<tr>
+          <td><a href="${href}" target="_blank" rel="noopener">${name}</a></td>
+          <td>${d}</td>
+        </tr>`;
+      }).join('') || `<tr><td colspan="2">No files</td></tr>`;
     }
+
     load();
   </script>
 </body>
