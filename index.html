@@ -1,204 +1,93 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Gunster Biotech — CoA Search (Product + Lot)</title>
+  <title>CoA Download</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    /* =======================
-       GUNSTER THEME (tokens)
-       ======================= */
+    /* ===== Gunster-like minimalist theme (no header/footer) ===== */
     :root{
-      --gunster-blue: #0071BC;     /* 主色：按鈕/強調 */
-      --gunster-blue-d: #005A99;   /* hover/active */
-      --gunster-blue-xd:#004b80;   /* 深色文字/框線強化 */
-      --ink-1:#111; --ink-2:#444; --ink-3:#666;
-      --line:#d4d7dc;              /* 邊框灰 */
-      --bg:#fff; --bg-soft:#f7f9fc; --table-head:#eef3f9;
-      --radius:10px; --radius-sm:6px;
-      --shadow:0 6px 16px rgba(0,0,0,.06);
+      --blue:#0071BC; --blue-d:#005A99;
+      --ink:#2d333a; --muted:#6b7785; --line:#d6e1ef;
+      --bg:#fff; --bg-soft:#f5f7fa;
+      --radius:6px;
     }
-
-    /* =======================
-       Base
-       ======================= */
     html,body{height:100%}
-    body{
-      font-family:system-ui, -apple-system, "Segoe UI", Arial, "Noto Sans TC", sans-serif;
-      color:var(--ink-1);
-      background:var(--bg-soft);
-      margin:0; padding:24px;
-    }
-    .container{
-      max-width:1080px; margin:0 auto;
-    }
-    .card{
-      background:var(--bg);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:20px;
-    }
-    h1{
-      font-size:22px; margin:0 0 16px;
-      letter-spacing:.2px;
-    }
+    body{margin:0;background:var(--bg-soft);color:var(--ink);
+         font-family:Arial,"Noto Sans",system-ui,sans-serif}
+    .wrap{max-width:1080px;margin:0 auto;padding:16px}
+    h2{margin:0 0 12px;font-size:22px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px}
 
-    /* =======================
-       Controls
-       ======================= */
-    .controls{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      margin:8px 0 4px;
-    }
-    .field{
-      display:inline-flex; align-items:center; gap:6px;
-    }
-    .label{ color:var(--ink-2); font-size:14px; }
+    /* Controls */
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    label{font-size:14px;color:#3b4652;margin-right:4px}
+    select,input{min-height:34px;border:1px solid var(--line);border-radius:var(--radius);
+                 padding:6px 10px;background:#fff}
+    input::placeholder{color:#9aa3ad}
+    .btn{min-height:34px;border:1px solid #b9c8dc;border-radius:var(--radius);
+         background:#efefef;cursor:pointer;padding:6px 14px;font-weight:700}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    .status{margin:8px 0 6px;color:var(--muted);font-size:13px}
 
-    select,input[type="text"]{
-      appearance:none;
-      border:1px solid var(--line);
-      border-radius:var(--radius-sm);
-      padding:8px 10px;
-      font-size:14px; background:#fff;
-      min-height:36px;
-      outline:none;
-      transition:border-color .15s ease, box-shadow .15s ease;
-    }
-    select:focus,input[type="text"]:focus{
-      border-color:var(--gunster-blue);
-      box-shadow:0 0 0 3px rgba(0,113,188,.15);
-    }
-    input::placeholder{ color:#9aa3ad; }
-
-    /* Buttons — Gunster style */
-    .btn{
-      display:inline-flex; align-items:center; justify-content:center;
-      gap:8px;
-      border:1px solid var(--gunster-blue);
-      background:var(--gunster-blue);
-      color:#fff; min-height:36px;
-      padding:8px 14px; font-size:14px; font-weight:600;
-      border-radius:var(--radius-sm); cursor:pointer;
-      transition:background .15s ease, border-color .15s ease, transform .02s ease;
-      text-decoration:none;
-      user-select:none;
-    }
-    .btn:hover{ background:var(--gunster-blue-d); border-color:var(--gunster-blue-d); }
-    .btn:active{ transform:translateY(1px); }
-    .btn.secondary{
-      background:#fff; color:var(--gunster-blue);
-      border-color:var(--gunster-blue);
-    }
-    .btn.secondary:hover{
-      background:#f0f6fb;
-    }
-
-    /* Hint / status */
-    #statusMsg{ margin:10px 0 4px; color:var(--gunster-blue-xd); font-weight:600; }
-    .muted{ color:var(--ink-3); font-size:12px; }
-
-    /* =======================
-       Table
-       ======================= */
-    .table-wrap{
-      overflow:auto; border-radius:var(--radius); border:1px solid var(--line); background:#fff;
-    }
-    table{ width:100%; border-collapse:separate; border-spacing:0; min-width:720px; }
+    /* Table */
+    .tablewrap{border:1px solid var(--line);border-radius:8px;overflow:auto;background:#fff}
+    table{width:100%;border-collapse:separate;border-spacing:0}
     thead th{
-      position:sticky; top:0; z-index:1;
-      background:linear-gradient(180deg, #f6f9fd, var(--table-head));
-      color:#2d333a; font-weight:700; letter-spacing:.2px;
-      border-bottom:1px solid var(--line);
+      background:#1195e3;color:#fff;font-weight:700;
+      border-bottom:1px solid #0b72b4; position:sticky; top:0;
     }
-    th,td{ padding:10px 12px; border-right:1px solid var(--line); }
-    th:last-child, td:last-child{ border-right:none; }
-    tbody tr{ border-top:1px solid var(--line); }
-    tbody tr:hover{ background:#fafcff; }
-    .col-idx{ width:60px; text-align:center; }
-    .col-action a{ color:var(--gunster-blue); text-decoration:none; font-weight:600; }
-    .col-action a:hover{ text-decoration:underline; }
+    th,td{padding:10px 12px;border-right:1px solid #e6eef7}
+    th:last-child,td:last-child{border-right:none}
+    tbody tr{border-top:1px solid #eef4fb}
+    tbody tr:hover{background:#f8fbff}
+    .title a{color:#167ac6;text-decoration:none}
+    .title a:hover{text-decoration:underline}
 
-    /* Responsive tweaks */
-    @media (max-width:640px){
-      body{ padding:14px; }
-      .btn{ width:100%; }
-      .controls{ gap:8px; }
-    }
+    /* Tube/Cap pair */
+    .pair{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .pair > span{font-size:14px;color:#3b4652}
+    @media (max-width:720px){ .controls{gap:6px} .pair{gap:6px} }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="wrap">
     <div class="card">
-      <h1>Gunster Biotech — CoA Search (Product + Lot)</h1>
+      <h2>CoA Download</h2>
 
+      <!-- Controls -->
       <div class="controls">
-        <div class="field">
-          <span class="label">品名：</span>
-          <select id="productSelect">
-            <option value="">（不指定）</option>
-            <option>MB-P02-A</option>
-            <option>MB-P02D</option>
-            <option>MB-P08A</option>
-            <option>MB-P08B</option>
-            <option>MB-P08D</option>
-            <option>MB-P08AD</option>
-            <option>MB-Q100</option>
-            <option>MB-Q100A</option>
-            <option>MB-Q100C</option>
-            <option>MB-Q100W</option>
-            <option>MB-Q200</option>
-            <option>MB-Q200A</option>
-            <option>MB-Q200W</option>
-            <option>MB-Optical Cap</option>
-            <option>MB-P08B-Cap</option>
-            <option>MB-P08D-Cap</option>
-            <option>MB-QR4</option>
-            <option>MB-P96</option>
-            <option>MB-P96-T</option>
-            <option>MB-Q96</option>
-            <option>MB-Q96-S</option>
-            <option>MB-Q96-LN</option>
-            <option>MB-Q96-LP</option>
-            <option>MB-Q96-LBR</option>
-            <option>MB-Q96-LBR-W</option>
-            <option>MB-E17</option>
-            <option>MB-384</option>
-            <option>MB-384W</option>
-            <option>MB-PSM</option>
-            <option>MB-QSM</option>
-            <option>MB-BQSM</option>
-            <option>MB-ASM</option>
-            <option>MB-ESM</option>
-          </select>
+        <label>Product:</label>
+        <select id="productSelect"></select>
+
+        <div id="lotSingle" style="display:none;">
+          <label style="margin-left:8px;">Lot:</label>
+          <input id="lotInput" type="text" inputmode="numeric" placeholder="e.g. 107043" />
         </div>
 
-        <div class="field">
-          <span class="label">Lot number：</span>
-          <input id="lotInput" type="text" placeholder="例如 107053（6碼以上數字）" inputmode="numeric" />
+        <div id="lotPair" class="pair" style="display:none;">
+          <span>Tube Lot:</span>
+          <input id="lotTube" type="text" inputmode="numeric" placeholder="e.g. 107043" />
+          <span>Cap Lot:</span>
+          <input id="lotCap" type="text" inputmode="numeric" placeholder="e.g. 250702" />
         </div>
 
-        <button class="btn" onclick="searchFiles()">Search</button>
-        <button class="btn secondary" onclick="clearResults()">Clear</button>
+        <button id="searchBtn" class="btn" disabled>Search</button>
       </div>
 
-      <div id="statusMsg"></div>
-      <div class="muted">提示：只填「Lot」，會用快速全域搜尋；選「品名」或「品名+Lot」，會遞迴掃描所有子資料夾。</div>
+      <div id="status" class="status">Please select product and enter Lot.</div>
 
-      <div class="table-wrap" style="margin-top:12px;">
-        <table id="resultsTable">
+      <!-- Result table -->
+      <div class="tablewrap">
+        <table>
           <thead>
             <tr>
-              <th class="col-idx">#</th>
-              <th>Filename</th>
-              <th>Folder</th>
-              <th>Last Modified</th>
-              <th>Action</th>
+              <th class="title">Title</th>
+              <th style="width:160px;">Published</th>
             </tr>
           </thead>
-          <tbody>
-            <!-- results here -->
+          <tbody id="tbody">
+            <!-- rows -->
           </tbody>
         </table>
       </div>
@@ -206,153 +95,189 @@
   </div>
 
   <script>
-    // 你的金鑰與根資料夾
+    // ===== Google Drive settings (use your real values) =====
     const API_KEY   = 'AIzaSyCHe4kvj5Mgv9MTdS9rL5Dxrg8d2qrTkzI';
     const FOLDER_ID = '1cstVGEu9aSqYnSMNJsbH_-2s1wtn-jsj';
+    const DRIVE_ID  = ''; // shared drive id if needed; else leave empty
     const supports  = '&supportsAllDrives=true&includeItemsFromAllDrives=true';
 
-    // -------- 併發限制，避免同時太多請求 --------
-    function createLimiter(maxConcurrent = 8) {
-      let running = 0; const q = [];
-      const runNext = () => {
-        if (running >= maxConcurrent || !q.length) return;
-        running++;
-        const { fn, res, rej } = q.shift();
-        fn().then(v => { running--; res(v); runNext(); })
-            .catch(e => { running--; rej(e); runNext(); });
-      };
-      return fn => new Promise((res, rej) => { q.push({ fn, res, rej }); runNext(); });
+    // ===== Product groups (optgroup) =====
+    const GROUPS = [
+      ["Separate 8-strip", [
+        "MB-P08B","MB-P08D","MB-Q100","MB-Q100C","MB-Q100W","MB-Q200","MB-Q200W","MB-QR4"
+      ]],
+      ["Tube+Attached 8-strip", [
+        "MB-P02-A","MB-P02D","MB-P08A","MB-P08AD",
+        "MB-P08A(B)","MB-P08A(G)","MB-P08A(R)","MB-P08A(P)","MB-P08A(Y)","MB-P08A(O)",
+        "MB-P08AD (B)","MB-P08AD (G)","MB-P08AD (R)","MB-P08AD (P)","MB-P08AD (Y)","MB-P08AD (O)",
+        "MB-E17"
+      ]],
+      ["96 & 384 Plates", [
+        "MB-P96","MB-P96-T","MB-Q96","MB-Q96-S","MB-Q96-LN","MB-Q96-LP","MB-Q96-LBR","MB-Q96-LBR-W","MB-384","MB-384W"
+      ]],
+      ["Film", ["MB-PSM","MB-QSM","MB-BQSM","MB-ASM","MB-ESM"]]
+    ];
+    const separateProducts = new Set(GROUPS[0][1]);
+
+    // ===== Build product dropdown =====
+    const sel = document.getElementById('productSelect');
+    function buildDropdown(){
+      sel.innerHTML = '<option value="">Please Select…</option>';
+      GROUPS.forEach(([label, items])=>{
+        const og = document.createElement('optgroup');
+        og.label = label;
+        items.forEach(p=>{
+          const opt = document.createElement('option');
+          opt.value = p; opt.textContent = p;
+          og.appendChild(opt);
+        });
+        sel.appendChild(og);
+      });
     }
-    const limit = createLimiter(8);
+    buildDropdown();
 
-    // 批次取資料夾名稱
-    async function getFolderNames(ids) {
-      const uniq = [...new Set(ids.filter(Boolean))];
-      const map = {};
-      await Promise.all(uniq.map(id => limit(async () => {
-        const url = `https://www.googleapis.com/drive/v3/files/${id}?key=${API_KEY}&fields=name${supports}`;
-        const r = await fetch(url); const j = await r.json();
-        map[id] = j && j.name ? j.name : '(No Folder)';
-      })));
-      return map;
-    }
+    // ===== UI logic: lot fields + button enable =====
+    const lotSingle = document.getElementById('lotSingle');
+    const lotPair   = document.getElementById('lotPair');
+    const lotInput  = document.getElementById('lotInput');
+    const lotTube   = document.getElementById('lotTube');
+    const lotCap    = document.getElementById('lotCap');
+    const searchBtn = document.getElementById('searchBtn');
+    const statusEl  = document.getElementById('status');
+    const tbody     = document.getElementById('tbody');
 
-    // 列出「所有子資料夾」（不套 name 篩選）
-    async function listSubfolders(folderId, pageToken = '') {
-      const q = `'${folderId}'+in+parents+and+trashed=false+and+mimeType='application/vnd.google-apps.folder'`;
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
-      const r = await fetch(url);
-      return r.json();
-    }
+    function isDigits(s){ return /^\d+$/.test(s.trim()); }
 
-    // 列出「檔案」（可套 name 篩選；排除資料夾）
-    async function listFilesInFolderFiltered(folderId, textClauses, pageToken = '') {
-      const nameFilter = textClauses.length
-        ? textClauses.map(t => `name+contains+'${encodeURIComponent(t).replace(/'/g,"%27")}'`).join('+and+')
-        : '';
-
-      let q = `'${folderId}'+in+parents+and+trashed=false+and+mimeType!='application/vnd.google-apps.folder'`;
-      if (nameFilter) q += `+and+${nameFilter}`;
-
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,parents,modifiedTime),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
-      const r = await fetch(url);
-      return r.json();
-    }
-
-    // 遞迴搜尋：先抓檔案(有關鍵字篩) → 再抓所有子夾(不篩)往下走
-    async function searchRecursively(folderId, textClauses, out) {
-      let token = '';
-      do {
-        const data = await limit(() => listFilesInFolderFiltered(folderId, textClauses, token));
-        if (data.files?.length) out.push(...data.files);
-        token = data.nextPageToken || '';
-      } while (token);
-
-      let ft = '';
-      const subs = [];
-      do {
-        const d = await limit(() => listSubfolders(folderId, ft));
-        if (d.files?.length) subs.push(...d.files.map(f => f.id));
-        ft = d.nextPageToken || '';
-      } while (ft);
-
-      await Promise.all(subs.map(id => searchRecursively(id, textClauses, out)));
+    function refreshLotUI(){
+      const p = sel.value;
+      const showPair = separateProducts.has(p);
+      lotSingle.style.display = p && !showPair ? 'inline-flex' : 'none';
+      lotPair.style.display   = p && showPair  ? 'inline-flex' : 'none';
+      validate();
     }
 
-    // Lot 快速全域搜尋（僅輸入 6+ 位數字時）→ 排除資料夾
-    async function fastLotSearch(lot) {
-      let token = ''; const out = [];
-      const filter = `name+contains+'${encodeURIComponent(lot).replace(/'/g,"%27")}'`
-                   + `+and+mimeType!='application/vnd.google-apps.folder'`;
-      do {
-        const url = `https://www.googleapis.com/drive/v3/files?q=${filter}+and+trashed=false`
-                  + `&fields=files(id,name,parents,modifiedTime),nextPageToken&pageSize=200${supports}`
-                  + `&pageToken=${token}&key=${API_KEY}`;
-        const j = await fetch(url).then(r => r.json());
-        if (j.files) out.push(...j.files);
+    function validate(){
+      const p = sel.value;
+      let ok = false;
+      if (!p){ ok = false; }
+      else if (separateProducts.has(p)){
+        const t = lotTube.value.trim(), c = lotCap.value.trim();
+        ok = (isDigits(t) || isDigits(c)); // at least one
+      }else{
+        ok = isDigits(lotInput.value.trim());
+      }
+      searchBtn.disabled = !ok;
+      statusEl.textContent = ok ? 'Ready. Click Search to query.' : 'Please select product and enter Lot.';
+    }
+
+    sel.addEventListener('change', refreshLotUI);
+    [lotInput, lotTube, lotCap].forEach(el=>{
+      el.addEventListener('input', validate);
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter' && !searchBtn.disabled){ doSearch(); } });
+    });
+    searchBtn.addEventListener('click', doSearch);
+
+    // ===== Drive query helpers =====
+    function qEncode(s){ return encodeURIComponent(s).replace(/'/g,"%27"); }
+
+    async function searchGlobal(clauses){
+      // Full-drive (or shared drive) search with "name contains" ANDed clauses
+      const filter = clauses.map(t=>`name contains '${qEncode(t)}'`).join(' and ');
+      let q = `${filter} and trashed=false and mimeType!='application/vnd.google-apps.folder'`;
+      const base = `https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime),nextPageToken&pageSize=200${supports}&key=${API_KEY}`;
+      const corp = DRIVE_ID ? `&corpora=drive&driveId=${DRIVE_ID}` : '';
+      let token = '', out = [];
+      do{
+        const url = `${base}${corp}&q=${q}${token?`&pageToken=${token}`:''}`;
+        const j = await fetch(url).then(r=>r.json());
+        out.push(...(j.files||[]));
         token = j.nextPageToken || '';
-      } while (token);
+      }while(token);
       return out;
     }
 
-    function resetTable() {
-      const tbody = document.querySelector('#resultsTable tbody');
+    // Fallback: recursive scan within Folder ID (slower but constrained to your tree)
+    async function listSubfolders(folderId, pageToken=''){
+      const q = `'${folderId}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'`;
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
+      return fetch(url).then(r=>r.json());
+    }
+    async function listFilesInFolderFiltered(folderId, clauses, pageToken=''){
+      const nameFilter = clauses.map(t=>`name contains '${qEncode(t)}'`).join(' and ');
+      const q = `'${folderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder' and ${nameFilter}`;
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime),nextPageToken&pageSize=200${supports}&pageToken=${pageToken}&key=${API_KEY}`;
+      return fetch(url).then(r=>r.json());
+    }
+    async function searchRecursive(folderId, clauses, out){
+      let token=''; do{
+        const j = await listFilesInFolderFiltered(folderId, clauses, token);
+        out.push(...(j.files||[]));
+        token = j.nextPageToken || '';
+      }while(token);
+      let ft=''; const subs=[];
+      do{
+        const d = await listSubfolders(folderId, ft);
+        subs.push(...(d.files||[]).map(f=>f.id));
+        ft = d.nextPageToken || '';
+      }while(ft);
+      for (const id of subs){ await searchRecursive(id, clauses, out); }
+    }
+
+    function render(items){
+      // dedupe + sort desc by modifiedTime
+      const map = new Map(); items.forEach(f=>map.set(f.id,f));
+      const list = [...map.values()].sort((a,b)=> (b.modifiedTime||'').localeCompare(a.modifiedTime||''));
+
+      tbody.innerHTML = list.map(f=>{
+        const date = f.modifiedTime ? new Date(f.modifiedTime).toISOString().slice(0,10) : '';
+        const href = `https://drive.google.com/uc?id=${f.id}&export=download`;
+        return `<tr>
+          <td class="title"><a href="${href}" target="_blank" rel="noopener">${f.name}</a></td>
+          <td>${date}</td>
+        </tr>`;
+      }).join('') || `<tr><td colspan="2">❌ No files found</td></tr>`;
+      statusEl.textContent = `✅ Found ${list.length} records`;
+    }
+
+    async function doSearch(){
+      searchBtn.disabled = true;
       tbody.innerHTML = '';
-    }
+      statusEl.textContent = 'Searching…';
 
-    function clearResults() {
-      document.getElementById('productSelect').value = '';
-      document.getElementById('lotInput').value = '';
-      resetTable(); document.getElementById('statusMsg').textContent = '';
-    }
+      const p = sel.value;
+      const isSeparate = separateProducts.has(p);
+      const clausesList = [];
 
-    async function searchFiles() {
-      const start = Date.now();
-      const product = document.getElementById('productSelect').value.trim();
-      const lot     = document.getElementById('lotInput').value.trim();
-      const status  = document.getElementById('statusMsg');
-      const tbody   = document.querySelector('#resultsTable tbody');
+      if (isSeparate){
+        const t = lotTube.value.trim(), c = lotCap.value.trim();
+        if (isDigits(t)) clausesList.push([p, `Lot-${t}`]);
+        if (isDigits(c)) clausesList.push([p+'CAP', `Lot-${c}`]);
+      }else{
+        const lot = lotInput.value.trim();
+        clausesList.push([p, `Lot-${lot}`]);
+      }
 
-      resetTable();
-      status.textContent = '⏳ 正在搜尋，請稍候…';
-
-      const isLotOnly = /^\d{6,}$/.test(lot) && !product;
-      let files = [];
-
-      try {
-        if (isLotOnly) {
-          files = await fastLotSearch(lot);
-        } else {
-          const clauses = [];
-          if (product) clauses.push(product);
-          if (lot)     clauses.push(lot);
-          await searchRecursively(FOLDER_ID, clauses, files);
+      try{
+        let results = [];
+        // Prefer global search (fast). If nothing returns, fallback to recursive under FOLDER_ID.
+        for (const clauses of clausesList){
+          const found = await searchGlobal(clauses);
+          if (found.length) { results.push(...found); }
+          else {
+            const bag=[]; await searchRecursive(FOLDER_ID, clauses, bag); results.push(...bag);
+          }
         }
-
-        const parentIds = files.flatMap(f => f.parents || []);
-        const folderMap = await getFolderNames(parentIds);
-        files.sort((a,b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
-
-        files.forEach((f, i) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td class="col-idx">${i+1}</td>
-            <td>${f.name}</td>
-            <td>${folderMap[f.parents?.[0]] || ''}</td>
-            <td>${new Date(f.modifiedTime).toLocaleString()}</td>
-            <td class="col-action">
-              <a href="https://drive.google.com/uc?id=${f.id}&export=download" target="_blank" rel="noopener">Download</a>
-            </td>`;
-          tbody.appendChild(tr);
-        });
-
-        const secs = ((Date.now() - start) / 1000).toFixed(2);
-        status.textContent = `✅ 找到 ${files.length} 筆結果，用時 ${secs} 秒`;
-      } catch (e) {
+        render(results);
+      }catch(e){
         console.error(e);
-        status.textContent = '⚠️ 發生錯誤：' + (e?.message || 'Unknown error');
+        statusEl.textContent = '⚠ Search failed';
+      }finally{
+        validate(); // re-enable if inputs still valid
       }
     }
+
+    // init
+    refreshLotUI();
   </script>
 </body>
 </html>
