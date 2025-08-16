@@ -73,7 +73,7 @@
         <button id="clearBtn" class="btn">Clear</button>
       </div>
 
-      <div id="status" class="status">Source: (detecting…)</div>
+      <div id="status" class="status">Source: (detecting…) — waiting for Search</div>
 
       <!-- Result table -->
       <div class="tablewrap">
@@ -84,7 +84,9 @@
               <th style="width:160px;">Published</th>
             </tr>
           </thead>
-          <tbody id="tbody"></tbody>
+          <tbody id="tbody">
+            <!-- 初始狀態不顯示任何資料，待使用者按 Search -->
+          </tbody>
         </table>
       </div>
     </div>
@@ -159,22 +161,26 @@
       }
       searchBtn.disabled = !ok;
       statusEl.textContent = (manifestPick
-        ? `Source: ${manifestPick} ${ok ? '— Ready.' : ''}`
-        : (ok ? 'Ready.' : 'Please select product and enter Lot.'));
+        ? `Source: ${manifestPick} — ${ok ? 'Ready. Press Search.' : 'waiting for Search'}`
+        : `${ok ? 'Ready. Press Search.' : 'waiting for Search'}`);
     }
     sel.addEventListener('change', refreshLotUI);
     [lotInput, lotTube, lotCap].forEach(el=>{
       el.addEventListener('input', validate);
-      el.addEventListener('keydown', e=>{ if(e.key==='Enter' && !searchBtn.disabled){ applyFilter(); } });
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter' && !searchBtn.disabled){ runSearch(); } });
     });
-    searchBtn.addEventListener('click', applyFilter);
+    searchBtn.addEventListener('click', runSearch);
     clearBtn.addEventListener('click', ()=>{
       sel.value=''; lotInput.value=''; lotTube.value=''; lotCap.value='';
-      refreshLotUI(); applyFilter(true);
+      refreshLotUI();
+      tbody.innerHTML = ''; // 清空表格
+      updateCount(0);
     });
 
-    // ===== Manifest fetch & render =====
+    // ===== Manifest load (預先載入到記憶體，但不渲染) =====
     let manifestPick = '';
+    let MANIFEST_ITEMS = []; // 正常化後的 items 暫存
+
     async function pickManifest(){
       const A = './manifest/manifest.json';
       const B = './manifest.json';
@@ -193,7 +199,6 @@
     }
 
     function normItem(it){
-      // 盡量容錯：支援 {name,url,modifiedTime|mtime|published,id}
       const name = it.name || it.title || '';
       const url  = it.url || (it.id ? `https://drive.google.com/uc?id=${it.id}&export=download` : '#');
       const d = it.modifiedTime || it.mtime || it.published || it.date || '';
@@ -201,71 +206,65 @@
       return {name, url, date: iso};
     }
 
-    function render(items){
-      const html = items.map(it=>{
-        const {name,url,date} = normItem(it);
-        return `<tr data-name="${encodeURIComponent(name)}">
-          <td class="title"><a href="${url}" target="_blank" rel="noopener">${name}</a></td>
-          <td>${date}</td>
-        </tr>`;
-      }).join('');
-      tbody.innerHTML = html || `<tr><td colspan="2">❌ No files</td></tr>`;
-      applyFilter(true); // 初次渲染後依目前條件更新顯示與計數
+    function rowHTML(it){
+      return `<tr>
+        <td class="title"><a href="${it.url}" target="_blank" rel="noopener">${it.name}</a></td>
+        <td>${it.date}</td>
+      </tr>`;
     }
 
-    // ===== Filtering (client-side on rendered rows) =====
-    function rowMatches(nameText, product, lotSingleVal, tubeVal, capVal){
-      const txt = nameText.toLowerCase();
-      if (!product) return true; // 清除時顯示全部
-      const p = product.toLowerCase();
+    function updateCount(n){
+      statusEl.textContent = `${manifestPick ? 'Source: '+manifestPick+' — ' : ''}顯示 ${n} 筆`;
+    }
 
+    // ===== Filtering by product / lot，僅在按下 Search 時套用 =====
+    function matchByRules(name, product, lotS, lotT, lotC){
+      const txt = name.toLowerCase();
+      if (!product) return false; // 沒選產品時不顯示任何資料
       if (separateProducts.has(product)){
         let ok = false;
-        if (isDigits(tubeVal)){
-          const key = `${product}-Lot-${tubeVal}`.toLowerCase();
+        if (isDigits(lotT)){
+          const key = `${product}-Lot-${lotT}`.toLowerCase();
           ok = ok || txt.includes(key);
         }
-        if (isDigits(capVal)){
-          // 支援「MB-XXXXCAP-Lot-」或「MB-XXXX-CAP-Lot-」兩種
-          const k1 = `${product}CAP-Lot-${capVal}`.toLowerCase();
-          const k2 = `${product}-CAP-Lot-${capVal}`.toLowerCase();
+        if (isDigits(lotC)){
+          const k1 = `${product}CAP-Lot-${lotC}`.toLowerCase();
+          const k2 = `${product}-CAP-Lot-${lotC}`.toLowerCase();
           ok = ok || txt.includes(k1) || txt.includes(k2);
         }
         return ok;
       } else {
-        const key = `${product}-Lot-${lotSingleVal}`.toLowerCase();
-        return isDigits(lotSingleVal) && txt.includes(key);
+        return isDigits(lotS) && txt.includes(`${product}-Lot-${lotS}`.toLowerCase());
       }
     }
 
-    function applyFilter(isInit=false){
+    function renderFiltered(product, lotS, lotT, lotC){
+      const filtered = MANIFEST_ITEMS.filter(it => matchByRules(it.name, product, lotS, lotT, lotC));
+      // 依日期新→舊
+      filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+      tbody.innerHTML = filtered.length
+        ? filtered.map(rowHTML).join('')
+        : `<tr><td colspan="2">❌ No files</td></tr>`;
+      updateCount(filtered.length);
+    }
+
+    function runSearch(){
       const product = sel.value;
       const lotS = lotInput.value.trim();
       const lotT = lotTube.value.trim();
       const lotC = lotCap.value.trim();
-
-      const rows = Array.from(tbody.querySelectorAll('tr'));
-      let shown = 0;
-      rows.forEach(tr=>{
-        const name = decodeURIComponent(tr.getAttribute('data-name')||'');
-        const ok = rowMatches(name, product, lotS, lotT, lotC);
-        tr.style.display = ok ? '' : 'none';
-        if (ok) shown++;
-      });
-      if (!isInit){
-        statusEl.textContent = `${manifestPick ? 'Source: '+manifestPick+' — ' : ''}顯示 ${shown} 筆`;
-      }else{
-        statusEl.textContent = `${manifestPick ? 'Source: '+manifestPick : ''}`;
-      }
+      renderFiltered(product, lotS, lotT, lotC);
     }
 
-    // ===== Boot =====
+    // ===== Boot：載入 manifest 到記憶體，但不渲染任何列 =====
     (async ()=>{
       try{
         const data = await pickManifest();
-        // 支援清單是陣列或包在 {files: []}
         const items = Array.isArray(data) ? data : (data.files || data.items || []);
-        render(items);
+        MANIFEST_ITEMS = items.map(normItem);
+        // 初始狀態：不渲染資料
+        tbody.innerHTML = '';
+        updateCount(0);
       }catch(e){
         console.error(e);
         statusEl.textContent = '⚠ Cannot load manifest';
