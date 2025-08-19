@@ -92,184 +92,190 @@
     </div>
   </div>
 
-  <script>
-    // ===== Product groups (for dropdown) =====
-    const GROUPS = [
-      ["Separate 8-strip", [
-        "MB-P08B","MB-P08D","MB-Q100","MB-Q100C","MB-Q100W","MB-Q200","MB-Q200W","MB-QR4"
-      ]],
-      ["Tube+Attached 8-strip", [
-        "MB-P02-A","MB-P02D","MB-P08A","MB-P08AD","MB-E17"
-      ]],
-      ["96 & 384 Plates", [
-        "MB-P96","MB-P96-T","MB-Q96","MB-Q96-S","MB-Q96-LN","MB-Q96-LP","MB-Q96-LBR","MB-Q96-LBR-W","MB-384","MB-384W"
-      ]],
-      ["Film", ["MB-PSM","MB-QSM","MB-BQSM","MB-ASM","MB-ESM"]]
-    ];
-    const separateProducts = new Set(GROUPS[0][1]);
+<script>
+  // ===== Product groups (for dropdown) =====
+  const GROUPS = [
+    ["Separate 8-strip", [
+      "MB-P08B","MB-P08D","MB-Q100","MB-Q100C","MB-Q100W","MB-Q200","MB-Q200W","MB-QR4"
+    ]],
+    ["Tube+Attached 8-strip", [
+      "MB-P02-A","MB-P02D","MB-P08A","MB-P08AD","MB-E17"
+    ]],
+    ["96 & 384 Plates", [
+      "MB-P96","MB-P96-T","MB-Q96","MB-Q96-S","MB-Q96-LN","MB-Q96-LP","MB-Q96-LBR","MB-Q96-LBR-W","MB-384","MB-384W"
+    ]],
+    ["Film", ["MB-PSM","MB-QSM","MB-BQSM","MB-ASM","MB-ESM"]]
+  ];
+  const separateProducts = new Set(GROUPS[0][1]);
 
-    // ===== Elements =====
-    const sel = document.getElementById('productSelect');
-    const lotSingle = document.getElementById('lotSingle');
-    const lotPair   = document.getElementById('lotPair');
-    const lotInput  = document.getElementById('lotInput');
-    const lotTube   = document.getElementById('lotTube');
-    const lotCap    = document.getElementById('lotCap');
-    const searchBtn = document.getElementById('searchBtn');
-    const clearBtn  = document.getElementById('clearBtn');
-    const statusEl  = document.getElementById('status');
-    const tbody     = document.getElementById('tbody');
+  // Optical Cap alias
+  const OPTICAL_CAP = "MB-Optical Cap";
 
-    // ===== Build dropdown =====
-    function buildDropdown(){
-      sel.innerHTML = '<option value="">Please Select…</option>';
-      GROUPS.forEach(([label, items])=>{
-        const og = document.createElement('optgroup');
-        og.label = label;
-        items.forEach(p=>{
-          const opt = document.createElement('option');
-          opt.value = p; opt.textContent = p;
-          og.appendChild(opt);
-        });
-        sel.appendChild(og);
+  // ===== Elements =====
+  const sel = document.getElementById('productSelect');
+  const lotSingle = document.getElementById('lotSingle');
+  const lotPair   = document.getElementById('lotPair');
+  const lotInput  = document.getElementById('lotInput');
+  const lotTube   = document.getElementById('lotTube');
+  const lotCap    = document.getElementById('lotCap');
+  const searchBtn = document.getElementById('searchBtn');
+  const clearBtn  = document.getElementById('clearBtn');
+  const statusEl  = document.getElementById('status');
+  const tbody     = document.getElementById('tbody');
+
+  // ===== Build dropdown =====
+  function buildDropdown(){
+    sel.innerHTML = '<option value="">Please Select…</option>';
+    GROUPS.forEach(([label, items])=>{
+      const og = document.createElement('optgroup');
+      og.label = label;
+      items.forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        og.appendChild(opt);
       });
-    }
-    buildDropdown();
-
-    // ===== UI state =====
-    function isDigits(s){ return /^\d{6}$/.test(s.trim()); }
-
-
-    function refreshLotUI(){
-      const p = sel.value;
-      const showPair = separateProducts.has(p);
-      lotSingle.style.display = p && !showPair ? 'inline-flex' : 'none';
-      lotPair.style.display   = p && showPair  ? 'inline-flex' : 'none';
-      validate();
-    }
-    function validate(){
-      const p = sel.value;
-      let ok = false;
-      if (!p){ ok = false; }
-      else if (separateProducts.has(p)){
-        const t = lotTube.value.trim(), c = lotCap.value.trim();
-        ok = (isDigits(t) || isDigits(c)); // 至少一個
-      }else{
-        ok = isDigits(lotInput.value.trim());
-      }
-      searchBtn.disabled = !ok;
-      statusEl.textContent = (manifestPick
-        ? `Source: ${manifestPick} — ${ok ? 'Ready. Press Search.' : 'waiting for Search'}`
-        : `${ok ? 'Ready. Press Search.' : 'waiting for Search'}`);
-    }
-    sel.addEventListener('change', refreshLotUI);
-    [lotInput, lotTube, lotCap].forEach(el=>{
-      el.addEventListener('input', validate);
-      el.addEventListener('keydown', e=>{ if(e.key==='Enter' && !searchBtn.disabled){ runSearch(); } });
+      sel.appendChild(og);
     });
-    searchBtn.addEventListener('click', runSearch);
-    clearBtn.addEventListener('click', ()=>{
-      sel.value=''; lotInput.value=''; lotTube.value=''; lotCap.value='';
-      refreshLotUI();
-      tbody.innerHTML = ''; // 清空表格
-      updateCount(0);
-    });
+  }
+  buildDropdown();
 
-    // ===== Manifest load (預先載入到記憶體，但不渲染) =====
-    let manifestPick = '';
-    let MANIFEST_ITEMS = []; // 正常化後的 items 暫存
+  // ===== UI state =====
+  function isDigits(s){ return /^\d{6}$/.test(s.trim()); }
 
-    async function pickManifest(){
-      const A = './manifest/manifest.json';
-      const B = './manifest.json';
-      const tryFetch = async (u)=>{
-        try{
-          const r = await fetch(u, {cache:'no-store'});
-          if (r.ok) return await r.json();
-        }catch(_){}
-        return null;
-      };
-      let data = await tryFetch(A);
-      if (data){ manifestPick = '/docs/manifest/manifest.json'; return data; }
-      data = await tryFetch(B);
-      if (data){ manifestPick = '/docs/manifest.json'; return data; }
-      throw new Error('No manifest found');
+  function refreshLotUI(){
+    const p = sel.value;
+    const showPair = separateProducts.has(p);
+    lotSingle.style.display = p && !showPair ? 'inline-flex' : 'none';
+    lotPair.style.display   = p && showPair  ? 'inline-flex' : 'none';
+    validate();
+  }
+  function validate(){
+    const p = sel.value;
+    let ok = false;
+    if (!p){ ok = false; }
+    else if (separateProducts.has(p)){
+      const t = lotTube.value.trim(), c = lotCap.value.trim();
+      ok = (isDigits(t) || isDigits(c)); // 至少一個
+    }else{
+      ok = isDigits(lotInput.value.trim());
     }
+    searchBtn.disabled = !ok;
+    statusEl.textContent = (manifestPick
+      ? `Source: ${manifestPick} — ${ok ? 'Ready. Press Search.' : 'waiting for Search'}`
+      : `${ok ? 'Ready. Press Search.' : 'waiting for Search'}`);
+  }
+  sel.addEventListener('change', refreshLotUI);
+  [lotInput, lotTube, lotCap].forEach(el=>{
+    el.addEventListener('input', validate);
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter' && !searchBtn.disabled){ runSearch(); } });
+  });
+  searchBtn.addEventListener('click', runSearch);
+  clearBtn.addEventListener('click', ()=>{
+    sel.value=''; lotInput.value=''; lotTube.value=''; lotCap.value='';
+    refreshLotUI();
+    tbody.innerHTML = ''; // 清空表格
+    updateCount(0);
+    statusEl.textContent = manifestPick
+      ? `Source: ${manifestPick} — waiting for Search`
+      : `waiting for Search`;
+  });
 
-    function normItem(it){
-      const name = it.name || it.title || '';
-      const url  = it.url || (it.id ? `https://drive.google.com/uc?id=${it.id}&export=download` : '#');
-      const d = it.modifiedTime || it.mtime || it.published || it.date || '';
-      const iso = d ? new Date(d).toISOString().slice(0,10) : '';
-      return {name, url, date: iso};
-    }
+  // ===== Manifest load (預先載入到記憶體，但不渲染) =====
+  let manifestPick = '';
+  let MANIFEST_ITEMS = []; // 正常化後的 items 暫存
 
-    function rowHTML(it){
-      return `<tr>
-        <td class="title"><a href="${it.url}" target="_blank" rel="noopener">${it.name}</a></td>
-        <td>${it.date}</td>
-      </tr>`;
-    }
-
-    function updateCount(n){
-      statusEl.textContent = `${manifestPick ? 'Source: '+manifestPick+' — ' : ''}顯示 ${n} 筆`;
-    }
-
-    // ===== Filtering by product / lot，僅在按下 Search 時套用 =====
-    function matchByRules(name, product, lotS, lotT, lotC){
-      const txt = name.toLowerCase();
-      if (!product) return false; // 沒選產品時不顯示任何資料
-      if (separateProducts.has(product)){
-        let ok = false;
-        if (isDigits(lotT)){
-          const key = `${product}-Lot-${lotT}`.toLowerCase();
-          ok = ok || txt.includes(key);
-        }
-        if (isDigits(lotC)){
-          const k1 = `${product}CAP-Lot-${lotC}`.toLowerCase();
-          const k2 = `${product}-CAP-Lot-${lotC}`.toLowerCase();
-          ok = ok || txt.includes(k1) || txt.includes(k2);
-        }
-        return ok;
-      } else {
-        return isDigits(lotS) && txt.includes(`${product}-Lot-${lotS}`.toLowerCase());
-      }
-    }
-
-    function renderFiltered(product, lotS, lotT, lotC){
-      const filtered = MANIFEST_ITEMS.filter(it => matchByRules(it.name, product, lotS, lotT, lotC));
-      // 依日期新→舊
-      filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-      tbody.innerHTML = filtered.length
-        ? filtered.map(rowHTML).join('')
-        : `<tr><td colspan="2">❌ No files</td></tr>`;
-      updateCount(filtered.length);
-    }
-
-    function runSearch(){
-      const product = sel.value;
-      const lotS = lotInput.value.trim();
-      const lotT = lotTube.value.trim();
-      const lotC = lotCap.value.trim();
-      renderFiltered(product, lotS, lotT, lotC);
-    }
-
-    // ===== Boot：載入 manifest 到記憶體，但不渲染任何列 =====
-    (async ()=>{
+  async function pickManifest(){
+    const A = './manifest/manifest.json';
+    const B = './manifest.json';
+    const tryFetch = async (u)=>{
       try{
-        const data = await pickManifest();
-        const items = Array.isArray(data) ? data : (data.files || data.items || []);
-        MANIFEST_ITEMS = items.map(normItem);
-        // 初始狀態：不渲染資料
-        tbody.innerHTML = '';
-        updateCount(0);
-      }catch(e){
-        console.error(e);
-        statusEl.textContent = '⚠ Cannot load manifest';
-      }finally{
-        refreshLotUI();
+        const r = await fetch(u, {cache:'no-store'});
+        if (r.ok) return await r.json();
+      }catch(_){}
+      return null;
+    };
+    let data = await tryFetch(A);
+    if (data){ manifestPick = '/docs/manifest/manifest.json'; return data; }
+    data = await tryFetch(B);
+    if (data){ manifestPick = '/docs/manifest.json'; return data; }
+    throw new Error('No manifest found');
+  }
+
+  function normItem(it){
+    const name = it.name || it.title || '';
+    const url  = it.url || (it.id ? `https://drive.google.com/uc?id=${it.id}&export=download` : '#');
+    const d = it.modifiedTime || it.mtime || it.published || it.date || '';
+    const iso = d ? new Date(d).toISOString().slice(0,10) : '';
+    return {name, url, date: iso};
+  }
+
+  function rowHTML(it){
+    return `<tr>
+      <td class="title"><a href="${it.url}" target="_blank" rel="noopener">${it.name}</a></td>
+      <td>${it.date}</td>
+    </tr>`;
+  }
+
+  function updateCount(n){
+    statusEl.textContent = `${manifestPick ? 'Source: '+manifestPick+' — ' : ''}顯示 ${n} 筆`;
+  }
+
+  // ===== Filtering by product / lot，僅在按下 Search 時套用 =====
+  function matchByRules(name, product, lotS, lotT, lotC){
+    const txt = name.toLowerCase();
+    if (!product) return false;
+
+    if (separateProducts.has(product)){
+      let ok = false;
+      if (isDigits(lotT)){
+        const keyTube = `${product}-Lot-${lotT}`.toLowerCase();
+        ok = ok || txt.includes(keyTube);
       }
-    })();
-  </script>
+      if (isDigits(lotC)){
+        const keyOpt  = `${OPTICAL_CAP}-Lot-${lotC}`.toLowerCase();
+        const keyCap1 = `${product}CAP-Lot-${lotC}`.toLowerCase();
+        const keyCap2 = `${product}-CAP-Lot-${lotC}`.toLowerCase();
+        ok = ok || txt.includes(keyOpt) || txt.includes(keyCap1) || txt.includes(keyCap2);
+      }
+      return ok;
+    } else {
+      return isDigits(lotS) && txt.includes(`${product}-Lot-${lotS}`.toLowerCase());
+    }
+  }
+
+  function renderFiltered(product, lotS, lotT, lotC){
+    const filtered = MANIFEST_ITEMS.filter(it => matchByRules(it.name, product, lotS, lotT, lotC));
+    filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||'')); // 新→舊
+    tbody.innerHTML = filtered.length
+      ? filtered.map(rowHTML).join('')
+      : `<tr><td colspan="2">❌ No files</td></tr>`;
+    updateCount(filtered.length);
+  }
+
+  function runSearch(){
+    const product = sel.value;
+    const lotS = lotInput.value.trim();
+    const lotT = lotTube.value.trim();
+    const lotC = lotCap.value.trim();
+    renderFiltered(product, lotS, lotT, lotC);
+  }
+
+  // ===== Boot =====
+  (async ()=>{
+    try{
+      const data = await pickManifest();
+      const items = Array.isArray(data) ? data : (data.files || data.items || []);
+      MANIFEST_ITEMS = items.map(normItem);
+      tbody.innerHTML = '';
+      updateCount(0);
+    }catch(e){
+      console.error(e);
+      statusEl.textContent = '⚠ Cannot load manifest';
+    }finally{
+      refreshLotUI();
+    }
+  })();
+</script>
+
 </body>
 </html>
