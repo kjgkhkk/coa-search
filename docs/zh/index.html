@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>CoA 下載</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --blue:#0071BC; --blue-d:#005A99;
+      --ink:#2d333a; --muted:#6b7785; --line:#d6e1ef;
+      --bg:#fff; --bg-soft:#f5f7fa; --radius:6px;
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg-soft);color:var(--ink);
+         font-family:Arial,"Noto Sans",system-ui,sans-serif}
+    .wrap{max-width:1080px;margin:0 auto;padding:16px}
+    h2{margin:0 0 12px;font-size:22px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px}
+
+    /* Controls */
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    label{font-size:14px;color:#3b4652;margin-right:4px}
+    select,input{min-height:34px;border:1px solid var(--line);border-radius:var(--radius);
+                 padding:6px 10px;background:#fff}
+    input::placeholder{color:#9aa3ad}
+    .btn{min-height:34px;border:1px solid #b9c8dc;border-radius:var(--radius);
+         background:#efefef;cursor:pointer;padding:6px 14px;font-weight:700}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    .status{margin:8px 0 6px;color:var(--muted);font-size:13px}
+
+    /* Table */
+    .tablewrap{border:1px solid var(--line);border-radius:8px;overflow:auto;background:#fff}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{
+      background:#1195e3;color:#fff;font-weight:700;
+      border-bottom:1px solid #0b72b4; position:sticky; top:0;
+    }
+    th,td{padding:10px 12px;border-right:1px solid #e6eef7}
+    th:last-child,td:last-child{border-right:none}
+    tbody tr{border-top:1px solid #eef4fb}
+    tbody tr:hover{background:#f8fbff}
+    .title a{color:#167ac6;text-decoration:none}
+    .title a:hover{text-decoration:underline}
+
+    .pair{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .pair > span{font-size:14px;color:#3b4652}
+    @media (max-width:720px){ .controls{gap:6px} .pair{gap:6px} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>CoA 下載</h2>
+
+      <!-- Controls -->
+      <div class="controls">
+        <label>產品名稱：</label>
+        <select id="productSelect"></select>
+
+        <div id="lotSingle" style="display:none;">
+          <label style="margin-left:8px;">Lot：</label>
+          <input id="lotInput" type="text" inputmode="numeric" placeholder="例：107043" />
+        </div>
+
+        <div id="lotPair" class="pair" style="display:none;">
+          <span>管子 Lot：</span>
+          <input id="lotTube" type="text" inputmode="numeric" placeholder="例：107043" />
+          <span>蓋子 Lot：</span>
+          <input id="lotCap" type="text" inputmode="numeric" placeholder="例：250607" />
+        </div>
+
+        <button id="searchBtn" class="btn" disabled>搜尋</button>
+        <button id="clearBtn" class="btn">清除</button>
+      </div>
+
+      <div id="status" class="status">來源：../manifest/manifest.json — 等待搜尋</div>
+
+      <!-- Result table -->
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="title">標題</th>
+              <th style="width:160px;">發佈日期</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <!-- 初始狀態不顯示任何資料，待使用者按 搜尋 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ===== Product groups (for dropdown) =====
+  const GROUPS = [
+    ["管蓋分離 8 連排＆4 連排", [
+      "MB-P08B","MB-P08D","MB-Q100","MB-Q100C","MB-Q100W","MB-Q200","MB-Q200W","MB-QR4"
+    ]],
+    ["管蓋合一 8 連排", [
+      "MB-P02-A","MB-P02D","MB-P08A","MB-P08AD","MB-E17"
+    ]],
+    ["(q)PCR 96 與 384 孔盤", [
+      "MB-P96","MB-P96-T","MB-Q96","MB-Q96-S","MB-Q96-LN","MB-Q96-LP","MB-Q96-LBR","MB-Q96-LBR-W","MB-384","MB-384W"
+    ]],
+    ["封膜", ["MB-PSM","MB-QSM","MB-BQSM","MB-ASM","MB-ESM"]]
+  ];
+  const separateProducts = new Set(GROUPS[0][1]);
+
+  const OPTICAL_CAP = "MB-Optical Cap"; // 保留英文
+
+  // ===== Elements =====
+  const sel = document.getElementById('productSelect');
+  const lotSingle = document.getElementById('lotSingle');
+  const lotPair   = document.getElementById('lotPair');
+  const lotInput  = document.getElementById('lotInput');
+  const lotTube   = document.getElementById('lotTube');
+  const lotCap    = document.getElementById('lotCap');
+  const searchBtn = document.getElementById('searchBtn');
+  const clearBtn  = document.getElementById('clearBtn');
+  const statusEl  = document.getElementById('status');
+  const tbody     = document.getElementById('tbody');
+
+  // ===== Build dropdown =====
+  function buildDropdown(){
+    sel.innerHTML = '<option value="">請選擇…</option>';
+    GROUPS.forEach(([label, items])=>{
+      const og = document.createElement('optgroup');
+      og.label = label;
+      items.forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    });
+  }
+  buildDropdown();
+
+  // ===== UI state =====
+  function isDigits(s){ return /^\d{6}$/.test(s.trim()); }
+
+  function refreshLotUI(){
+    const p = sel.value;
+    const showPair = separateProducts.has(p);
+    lotSingle.style.display = p && !showPair ? 'inline-flex' : 'none';
+    lotPair.style.display   = p && showPair  ? 'inline-flex' : 'none';
+    validate();
+  }
+  function validate(){
+    const p = sel.value;
+    let ok = false;
+    if (!p){ ok = false; }
+    else if (separateProducts.has(p)){
+      const t = lotTube.value.trim(), c = lotCap.value.trim();
+      ok = (isDigits(t) || isDigits(c)); // 至少一個
+    }else{
+      ok = isDigits(lotInput.value.trim());
+    }
+    searchBtn.disabled = !ok;
+    statusEl.textContent = (manifestPick
+      ? `來源：${manifestPick} — ${ok ? '可搜尋，請按「搜尋」' : '等待搜尋'}`
+      : `${ok ? '可搜尋，請按「搜尋」' : '等待搜尋'}`);
+  }
+  sel.addEventListener('change', refreshLotUI);
+  [lotInput, lotTube, lotCap].forEach(el=>{
+    el.addEventListener('input', validate);
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter' && !searchBtn.disabled){ runSearch(); } });
+  });
+  searchBtn.addEventListener('click', runSearch);
+  clearBtn.addEventListener('click', ()=>{
+    sel.value=''; lotInput.value=''; lotTube.value=''; lotCap.value='';
+    refreshLotUI();
+    tbody.innerHTML = '';
+    updateCount(0);
+    statusEl.textContent = manifestPick
+      ? `來源：${manifestPick} — 等待搜尋`
+      : `等待搜尋`;
+  });
+
+  // ===== Manifest load (相對路徑 ../) =====
+  let manifestPick = '';
+  let MANIFEST_ITEMS = [];
+
+  async function pickManifest(){
+    const A = '../manifest/manifest.json';
+    const B = '../manifest.json';
+    const tryFetch = async (u)=>{
+      try{
+        const r = await fetch(u, {cache:'no-store'});
+        if (r.ok) return await r.json();
+      }catch(_){}
+      return null;
+    };
+    let data = await tryFetch(A);
+    if (data){ manifestPick = '/docs/manifest/manifest.json'; return data; }
+    data = await tryFetch(B);
+    if (data){ manifestPick = '/docs/manifest.json'; return data; }
+    throw new Error('No manifest found');
+  }
+
+  function normItem(it){
+    const name = it.name || it.title || '';
+    const url  = it.url || (it.id ? `https://drive.google.com/uc?id=${it.id}&export=download` : '#');
+    const d = it.modifiedTime || it.mtime || it.published || it.date || '';
+    const iso = d ? new Date(d).toISOString().slice(0,10) : '';
+    return {name, url, date: iso};
+  }
+
+  function rowHTML(it){
+    return `<tr>
+      <td class="title"><a href="${it.url}" target="_blank" rel="noopener">${it.name}</a></td>
+      <td>${it.date}</td>
+    </tr>`;
+  }
+
+  function updateCount(n){
+    statusEl.textContent = `${manifestPick ? '來源：'+manifestPick+' — ' : ''}顯示 ${n} 筆`;
+  }
+
+  function matchByRules(name, product, lotS, lotT, lotC){
+    const txt = name.toLowerCase();
+    if (!product) return false;
+
+    if (separateProducts.has(product)){
+      let ok = false;
+      if (isDigits(lotT)){
+        const keyTube = `${product}-Lot-${lotT}`.toLowerCase();
+        ok = ok || txt.includes(keyTube);
+      }
+      if (isDigits(lotC)){
+        const keyOpt  = `${OPTICAL_CAP}-Lot-${lotC}`.toLowerCase();
+        const keyCap1 = `${product}CAP-Lot-${lotC}`.toLowerCase();
+        const keyCap2 = `${product}-CAP-Lot-${lotC}`.toLowerCase();
+        ok = ok || txt.includes(keyOpt) || txt.includes(keyCap1) || txt.includes(keyCap2);
+      }
+      return ok;
+    } else {
+      return isDigits(lotS) && txt.includes(`${product}-Lot-${lotS}`.toLowerCase());
+    }
+  }
+
+  function renderFiltered(product, lotS, lotT, lotC){
+    const filtered = MANIFEST_ITEMS.filter(it => matchByRules(it.name, product, lotS, lotT, lotC));
+    filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||'')); 
+    tbody.innerHTML = filtered.length
+      ? filtered.map(rowHTML).join('')
+      : `<tr><td colspan="2">❌ 沒有檔案</td></tr>`;
+    updateCount(filtered.length);
+  }
+
+  function runSearch(){
+    const product = sel.value;
+    const lotS = lotInput.value.trim();
+    const lotT = lotTube.value.trim();
+    const lotC = lotCap.value.trim();
+    renderFiltered(product, lotS, lotT, lotC);
+  }
+
+  (async ()=>{
+    try{
+      const data = await pickManifest();
+      const items = Array.isArray(data) ? data : (data.files || data.items || []);
+      MANIFEST_ITEMS = items.map(normItem);
+      tbody.innerHTML = '';
+      updateCount(0);
+    }catch(e){
+      console.error(e);
+      statusEl.textContent = '⚠ 無法載入 manifest';
+    }finally{
+      refreshLotUI();
+    }
+  })();
+</script>
+
+</body>
+</html>
