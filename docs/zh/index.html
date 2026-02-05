@@ -202,7 +202,8 @@
 
   function normItem(it){
     const name = it.name || it.title || '';
-    const url  = it.url || (it.id ? `https://drive.google.com/uc?id=${it.id}&export=download` : '#');
+    //const url  = it.url || (it.id ? `https://drive.google.com/uc?id=${it.id}&export=download` : '#'); replace with website API
+    const url  = it.url || (it.id ? `https://www.gunster.com.tw/zAPI_DownloadCoAFile.php?id=${it.id}` : '#');
     const d = it.modifiedTime || it.mtime || it.published || it.date || '';
     const iso = d ? new Date(d).toISOString().slice(0,10) : '';
     return {name, url, date: iso};
