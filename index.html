@@ -228,7 +228,8 @@
 
       tbody.innerHTML = list.map(f=>{
         const date = f.modifiedTime ? new Date(f.modifiedTime).toISOString().slice(0,10) : '';
-        const href = `https://drive.google.com/uc?id=${f.id}&export=download`;
+        //const href = `https://drive.google.com/uc?id=${f.id}&export=download`; replace with website API
+        const href = `https://www.gunster.com.tw/zAPI_DownloadDoCFile.php?id=${f.id}`;
         return `<tr>
           <td class="title"><a href="${href}" target="_blank" rel="noopener">${f.name}</a></td>
           <td>${date}</td>
