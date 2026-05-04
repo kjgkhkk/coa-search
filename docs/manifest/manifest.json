@@ -1,6 +1,17 @@
 {
-  "generated_at": "2026-05-03T18:04:02.238Z",
+  "generated_at": "2026-05-04T18:55:40.815Z",
   "files": [
+    {
+      "id": "1QY8hJ896-wXTAseT_BJbVsRZfbU9SngN",
+      "name": "MB-Optical Cap-Lot-250331.pdf",
+      "url": "https://drive.google.com/uc?id=1QY8hJ896-wXTAseT_BJbVsRZfbU9SngN&export=download",
+      "modifiedTime": "2026-05-04T03:44:44.222Z",
+      "size": 160464,
+      "product": "MB-Optical ",
+      "lot": "250331",
+      "is_cap": true,
+      "legacy_key": ""
+    },
     {
       "id": "1vBwd4b56IvunqWFCAGcLzaLR2sf1McNR",
       "name": "MB-P08B-Cap-Lot-260409.pdf",
